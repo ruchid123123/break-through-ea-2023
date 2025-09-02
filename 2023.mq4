@@ -8,9 +8,9 @@ extern bool AutoLot=true  ;
 extern  Option1  AutoLotMode=20  ;
 extern double FixLot=0.01  ;
 extern string OrderSetting="=== Leave as Default ===="  ;
-extern int   stoploss=200  ;  // (止损)
+extern int   stoploss=162  ;  // (止损)
 extern int   takeprofit=1300  ;   // (止盈)
-extern int   step=200  ;  //(挂单距离)
+extern int   step=162  ;  //(挂单距离)
 extern string Config="==== Time Filter ===="  ;
 extern int   StartHour=1  ;   // (时间过滤)
 extern int   StopHour=23  ;   // (时间过滤)
