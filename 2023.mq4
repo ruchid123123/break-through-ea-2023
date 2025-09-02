@@ -49,6 +49,7 @@ extern bool   DeletePendingsOnLoss = true;    // 虧損時是否刪除所有掛�
 
 // +++++++++++++++ 新增的狀態變量 +++++++++++++++
 datetime pauseEndTime = 0; // 用於記錄暫停結束的時間戳
+datetime lastLossTime = 0; // 記錄最後一次亏損的时间，避免重複觸發
 // ++++++++++++++++++++++++++++++++++++++++++++++++
 
  int init()
@@ -155,37 +156,38 @@ int start()
             return(0); // 處於暫停期，直接退出
         }
 
-        // --- 2. 如果未處於暫停狀態，則檢查“最近N分鐘內”是否有虧損訂單 ---
-        datetime startTimeWindow = TimeCurrent() - PauseDuration_Minutes * 60; // 計算檢查窗口的開始時間
-
+        // --- 2. 如果未處於暫停狀態，則檢查是否有新的虧損訂單 ---
         for (int k = OrdersHistoryTotal() - 1; k >= 0; k--)
         {
             if (!OrderSelect(k, SELECT_BY_POS, MODE_HISTORY)) continue;
 
-            // *** 核心修正 ***
-            // 如果訂單的平倉時間不在我們關心的“最近N分鐘”窗口內，就跳過，並停止繼續搜索更早的訂單
-            if (OrderCloseTime() < startTimeWindow) break;
-
             // 篩選出由本EA、在本圖表、且虧損的訂單
             if (OrderSymbol() == Symbol() && OrderMagicNumber() == magicnumber && OrderProfit() < 0.0)
             {
-                // 找到了在近期虧損的訂單，立即觸發暫停
-                Print("Loss detected on ticket #", OrderTicket(), " at ", TimeToString(OrderCloseTime()));
-                Print("Pausing EA for ", PauseDuration_Minutes, " minutes from now.");
-
-                // 設置一個從“現在”開始的暫停結束時間
-                pauseEndTime = TimeCurrent() + PauseDuration_Minutes * 60;
-
-                if (DeletePendingsOnLoss)
+                // **關鍵修正**: 只有當這是一個新的虧損訂單才觸發暫停
+                if (OrderCloseTime() > lastLossTime)
                 {
-                    DeleteAllPendingOrders();
-                }
+                    Print("New loss detected on ticket #", OrderTicket(), " at ", TimeToString(OrderCloseTime()));
+                    Print("Pausing EA for ", PauseDuration_Minutes, " minutes from now.");
 
-                // 顯示暫停信息並立即退出，開始倒數計時
-                remainingSeconds = pauseEndTime - TimeCurrent();
-                Comment("EA PAUSED due to a recent loss. \n",
-                        "Resuming in ", remainingSeconds / 60, " min ", remainingSeconds % 60, " sec.");
-                return(0);
+                    // 記錄這次虧損的時間，避免重複觸發
+                    lastLossTime = OrderCloseTime();
+                    
+                    // 設置一個從“現在”開始的暫停結束時間
+                    pauseEndTime = TimeCurrent() + PauseDuration_Minutes * 60;
+
+                    if (DeletePendingsOnLoss)
+                    {
+                        DeleteAllPendingOrders();
+                    }
+
+                    // 顯示暫停信息並立即退出，開始倒數計時
+                    remainingSeconds = pauseEndTime - TimeCurrent();
+                    Comment("EA PAUSED due to a recent loss. \n",
+                            "Resuming in ", remainingSeconds / 60, " min ", remainingSeconds % 60, " sec.");
+                    return(0);
+                }
+                break; // 找到最近的虧損訂單後就停止搜索
             }
         }
     }
