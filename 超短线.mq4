@@ -26,6 +26,16 @@ extern string SpreadSetting = "==== Spread Display Setting ====";
 extern bool   ShowSpread = true;              // 是否顯示點差
 extern int    SpreadFontSize = 20;            // 點差顯示字體大小
 extern color  SpreadColor = Red;              // 點差顯示顏色
+
+// +++++++++++++++ 手動停止按鈕設置 +++++++++++++++
+extern string ManualStopSetting = "==== Manual Stop Button Setting ====";
+extern bool   ShowStopButton = true;          // 是否顯示停止按鈕
+extern int    StopButtonFontSize = 14;        // 停止按鈕字體大小
+extern color  StopButtonColor = Red;          // 停止按鈕顏色
+extern color  StopButtonBgColor = White;      // 停止按鈕背景顏色
+extern color  ContinueButtonColor = Green;    // 繼續按鈕顏色
+extern color  ContinueButtonBgColor = LightGreen; // 繼續按鈕背景顏色
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -60,6 +70,10 @@ datetime lastLossTime = 0; // 記錄最後一次亏損的時間，避免重複�
 
 // +++++++++++++++ 點差顯示變量 +++++++++++++++
 #define SPREAD_OBJ_NAME "SpreadDisplayObj"
+
+// +++++++++++++++ 手動停止按鈕變量 +++++++++++++++
+#define STOP_BUTTON_NAME "ManualStopButton"
+bool isEAStopped = false;                     // EA手動停止狀態
 // ++++++++++++++++++++++++++++++++++++++++++++++++
 
  int init()
@@ -133,12 +147,33 @@ datetime lastLossTime = 0; // 記錄最後一次亏損的時間，避免重複�
    ShowSpreadOnChart();
  }
  
+ // 初始化手動停止按鈕
+ if (ShowStopButton)
+ {
+   CreateStopButton();
+ }
+ 
  return(0);
  }
 //init <<==--------   --------
 
 int start()
 {
+    // ================== 手動停止檢查 ==================
+    // 檢查是否按下了停止按鈕
+    if (ShowStopButton)
+    {
+        CheckStopButtonClick();
+    }
+    
+    // 如果EA已被手動停止，停止所有交易邏輯
+    if (isEAStopped)
+    {
+        Comment("⛔ EA 已手動停止\n所有掛單已被刪除\n點擊緒色按鈕可繼續運行");
+        return(0);
+    }
+    // ================== 手動停止檢查結束 ==================
+    
     int       Local_2_in;
     double    Local_3_do;
     double    Local_4_do;
@@ -217,6 +252,12 @@ int start()
     if (ShowSpread)
     {
         ShowSpreadOnChart();
+    }
+    
+    // 更新停止按鈕顯示狀態
+    if (ShowStopButton)
+    {
+        CreateStopButton(); // 確保按鈕顯示狀態正確
     }
     
     Local_2_in = 0 ;
@@ -495,6 +536,9 @@ int deinit()
  // 删除點差顯示對象
  ObjectDelete(SPREAD_OBJ_NAME);
  
+ // 删除手動停止按鈕對象
+ ObjectDelete(STOP_BUTTON_NAME);
+ 
  ObjectsDeleteAll(-1,-1);
  return(0);
 }
@@ -653,4 +697,84 @@ void DrawSpreadOnChart(double spread)
     
     WindowRedraw();
 }
+
+// +++++++++++++++ 手動停止按鈕功能 +++++++++++++++
+void CreateStopButton()
+{
+    string buttonText;
+    color textColor, bgColor;
+    
+    if (!isEAStopped)
+    {
+        buttonText = "⛔ 停止EA";
+        textColor = StopButtonColor;
+        bgColor = StopButtonBgColor;
+    }
+    else
+    {
+        buttonText = "▶ 繼續運行";
+        textColor = ContinueButtonColor;
+        bgColor = ContinueButtonBgColor;
+    }
+    
+    if(ObjectFind(STOP_BUTTON_NAME) < 0)
+    {
+        ObjectCreate(STOP_BUTTON_NAME, OBJ_BUTTON, 0, 0, 0);
+        ObjectSet(STOP_BUTTON_NAME, OBJPROP_CORNER, 1);        // 右上角
+        ObjectSet(STOP_BUTTON_NAME, OBJPROP_XDISTANCE, 70);    // X距離（繼續往左移動）
+        ObjectSet(STOP_BUTTON_NAME, OBJPROP_YDISTANCE, 30);    // Y距離
+        ObjectSet(STOP_BUTTON_NAME, OBJPROP_XSIZE, 90);        // 按鈕寬度（略微增加）
+        ObjectSet(STOP_BUTTON_NAME, OBJPROP_YSIZE, 25);        // 按鈕高度
+        ObjectSet(STOP_BUTTON_NAME, OBJPROP_STATE, false);     // 按鈕狀態
+    }
+    
+    // 更新按鈕外觀
+    ObjectSet(STOP_BUTTON_NAME, OBJPROP_COLOR, textColor);     // 文字顏色
+    ObjectSet(STOP_BUTTON_NAME, OBJPROP_BGCOLOR, bgColor);     // 背景顏色
+    ObjectSetText(STOP_BUTTON_NAME, buttonText, StopButtonFontSize, "Arial Bold");
+    
+    WindowRedraw();
+}
+
+void CheckStopButtonClick()
+{
+    if(ObjectGet(STOP_BUTTON_NAME, OBJPROP_STATE) == true)
+    {
+        if (!isEAStopped)
+        {
+            // 停止EA
+            Print("手動停止EA - 正在刪除所有掛單...");
+            
+            // 設置停止狀態
+            isEAStopped = true;
+            
+            // 刪除所有本 EA 的掛單
+            DeleteAllPendingOrders();
+            
+            Print("手動停止EA - 所有掛單已刪除，交易已停止。");
+        }
+        else
+        {
+            // 繼續運行EA
+            Print("手動重啟EA - 正在繼續運行...");
+            
+            // 重置停止狀態
+            isEAStopped = false;
+            
+            // 清空熔断機制狀態（如果有）
+            pauseEndTime = 0;
+            
+            Print("手動重啟EA - EA已繼續運行。");
+        }
+        
+        // 更新按鈕外觀
+        CreateStopButton();
+        
+        // 重置按鈕狀態（避免重複触發）
+        ObjectSet(STOP_BUTTON_NAME, OBJPROP_STATE, false);
+        
+        WindowRedraw();
+    }
+}
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
