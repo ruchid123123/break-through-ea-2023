@@ -15,26 +15,26 @@ extern string Config="==== Time Filter ===="  ;
 extern int   StartHour=1  ;   // (时间过滤)
 extern int   StopHour=23  ;   // (时间过滤)
 
-// +++++++++++++++ 新增的熔斷機制設置 +++++++++++++++
-extern string LossSetting = "==== Stop on Loss Setting ====";
-extern bool   PauseOnLoss_Enabled = true;     // 開啟/關閉 虧損後暫停功能
-extern int    PauseDuration_Minutes = 1;     // 暫停時間（分鐘）
-extern bool   DeletePendingsOnLoss = true;    // 虧損時是否刪除所有掛單
+// +++++++++++++++ 新增的熔断机制设置 +++++++++++++++
+extern string LossSetting = "==== Stop on Loss Setting =====";
+extern bool   PauseOnLoss_Enabled = true;     // 开启/关闭 亏损后暂停功能
+extern int    PauseDuration_Minutes = 1;     // 暂停时间（分钟）
+extern bool   DeletePendingsOnLoss = true;    // 亏损时是否删除所有挂单
 
-// +++++++++++++++ 點差顯示設置 +++++++++++++++
+// +++++++++++++++ 点差显示设置 +++++++++++++++
 extern string SpreadSetting = "==== Spread Display Setting ====";
-extern bool   ShowSpread = true;              // 是否顯示點差
-extern int    SpreadFontSize = 20;            // 點差顯示字體大小
-extern color  SpreadColor = Red;              // 點差顯示顏色
+extern bool   ShowSpread = true;              // 是否显示点差
+extern int    SpreadFontSize = 16;            // 点差显示字体大小
+extern color  SpreadColor = Red;              // 点差显示颜色
 
-// +++++++++++++++ 手動停止按鈕設置 +++++++++++++++
+// +++++++++++++++ 手动停止按钮设置 +++++++++++++++
 extern string ManualStopSetting = "==== Manual Stop Button Setting ====";
-extern bool   ShowStopButton = true;          // 是否顯示停止按鈕
-extern int    StopButtonFontSize = 14;        // 停止按鈕字體大小
-extern color  StopButtonColor = Red;          // 停止按鈕顏色
-extern color  StopButtonBgColor = White;      // 停止按鈕背景顏色
-extern color  ContinueButtonColor = Green;    // 繼續按鈕顏色
-extern color  ContinueButtonBgColor = LightGreen; // 繼續按鈕背景顏色
+extern bool   ShowStopButton = true;          // 是否显示停止按钮
+extern int    StopButtonFontSize = 14;        // 停止按钮字体大小
+extern color  StopButtonColor = Red;          // 停止按钮颜色
+extern color  StopButtonBgColor = White;      // 停止按钮背景颜色
+extern color  ContinueButtonColor = Green;    // 继续按钮颜色
+extern color  ContinueButtonBgColor = LightGreen; // 继续按钮背景颜色
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -64,16 +64,17 @@ extern color  ContinueButtonBgColor = LightGreen; // 繼續按鈕背景顏色
   int       LotDigits = 0;
   double    lots = 0.0;
 
-// +++++++++++++++ 新增的狀態變量 +++++++++++++++
-datetime pauseEndTime = 0; // 用於記錄暫停結束的時間戳
-datetime lastLossTime = 0; // 記錄最後一次亏損的時間，避免重複觸發
+// +++++++++++++++ 新增的状态变量 +++++++++++++++
+datetime pauseEndTime = 0; // 用于记录暂停结束的时间戳
+datetime lastLossTime = 0; // 记录最后一次亏损的时间，避免重复触发
+bool isCircuitBreakerActive = false; // 熔断机制激活状态
 
-// +++++++++++++++ 點差顯示變量 +++++++++++++++
+// +++++++++++++++ 点差显示变量 +++++++++++++++
 #define SPREAD_OBJ_NAME "SpreadDisplayObj"
 
-// +++++++++++++++ 手動停止按鈕變量 +++++++++++++++
+// +++++++++++++++ 手动停止按钮变量 +++++++++++++++
 #define STOP_BUTTON_NAME "ManualStopButton"
-bool isEAStopped = false;                     // EA手動停止狀態
+bool isEAStopped = false;                     // EA手动停止状态
 // ++++++++++++++++++++++++++++++++++++++++++++++++
 
  int init()
@@ -141,13 +142,13 @@ bool isEAStopped = false;                     // EA手動停止狀態
  }
  zong_25_do = (Local_2_do - Local_3_do) / Point() / xt ;
  
- // 初始化點差顯示
+ // 初始化点差显示
  if (ShowSpread)
  {
    ShowSpreadOnChart();
  }
  
- // 初始化手動停止按鈕
+ // 初始化手动停止按钮
  if (ShowStopButton)
  {
    CreateStopButton();
@@ -159,20 +160,20 @@ bool isEAStopped = false;                     // EA手動停止狀態
 
 int start()
 {
-    // ================== 手動停止檢查 ==================
-    // 檢查是否按下了停止按鈕
+    // ================== 手动停止检查 ==================
+    // 检查是否按下了停止按钮
     if (ShowStopButton)
     {
         CheckStopButtonClick();
     }
     
-    // 如果EA已被手動停止，停止所有交易邏輯
+    // 如果EA已被手动停止，停止所有交易逻辑
     if (isEAStopped)
     {
-        Comment("⛔ EA 已手動停止\n所有掛單已被刪除\n點擊緒色按鈕可繼續運行");
+        Comment("⛔ EA 已手动停止\n所有挂单已被删除\n点击绿色按钮可继续运行");
         return(0);
     }
-    // ================== 手動停止檢查結束 ==================
+    // ================== 手动停止检查结束 ==================
     
     int       Local_2_in;
     double    Local_3_do;
@@ -192,72 +193,93 @@ int start()
     int       i;
     long      remainingSeconds = 0;
 
-    // ================== 新版熔斷機制: 檢查最近15分鐘內的虧損 ==================
+    // ================== 新版熔断机制: 检查最近15分钟内的亏损 ==================
     if (PauseOnLoss_Enabled)
     {
-        // --- 1. 檢查當前是否已處於暫停狀態 ---
+        // --- 1. 检查当前是否已处于暂停状态 ---
         if (TimeCurrent() < pauseEndTime)
         {
             if (DeletePendingsOnLoss)
             {
                 DeleteAllPendingOrders();
             }
+            
+            // 设置熔断机制激活状态，与手动停止同步
+            if (!isCircuitBreakerActive)
+            {
+                isCircuitBreakerActive = true;
+                isEAStopped = true; // 与手动停止按钮同步
+            }
+            
             remainingSeconds = pauseEndTime - TimeCurrent();
-            Comment("EA PAUSED due to a recent loss. \n",
-                    "Resuming in ", remainingSeconds / 60, " min ", remainingSeconds % 60, " sec.");
-            return(0); // 處於暫停期，直接退出
+            Comment("[CIRCUIT BREAKER] 熔断机制激活 - 亏损后自动暂停\n",
+                    "剩余时间: ", remainingSeconds / 60, " 分 ", remainingSeconds % 60, " 秒\n",
+                    "点击绿色按钮可继续运行");
+            return(0); // 处于暂停期，直接退出
+        }
+        else if (isCircuitBreakerActive)
+        {
+            // 熔断时间到了，自动恢复运行
+            isCircuitBreakerActive = false;
+            isEAStopped = false; // 与手动停止按钮同步
+            Print("熔断机制暂停时间结束，自动恢复交易");
         }
 
-        // --- 2. 如果未處於暫停狀態，則檢查是否有新的虧損訂單 ---
+        // --- 2. 如果未处于暂停状态，则检查是否有新的亏损订单 ---
         for (int k = OrdersHistoryTotal() - 1; k >= 0; k--)
         {
             if (!OrderSelect(k, SELECT_BY_POS, MODE_HISTORY)) continue;
 
-            // 篩選出由本EA、在本圖表、且虧損的訂單
+            // 筛选出由本EA、在本图表、且亏损的订单
             if (OrderSymbol() == Symbol() && OrderMagicNumber() == magicnumber && OrderProfit() < 0.0)
             {
-                // **關鍵修正**: 只有當這是一個新的虧損訂單才觸發暫停
+                // **关键修正**: 只有当这是一个新的亏损订单才触发暂停
                 if (OrderCloseTime() > lastLossTime)
                 {
                     Print("New loss detected on ticket #", OrderTicket(), " at ", TimeToString(OrderCloseTime()));
                     Print("Pausing EA for ", PauseDuration_Minutes, " minutes from now.");
 
-                    // 記錄這次虧損的時間，避免重複觸發
+                    // 记录这次亏损的时间，避免重复触发
                     lastLossTime = OrderCloseTime();
                     
-                    // 設置一個從“現在”開始的暫停結束時間
+                    // 设置一个从“现在”开始的暂停结束时间
                     pauseEndTime = TimeCurrent() + PauseDuration_Minutes * 60;
+                    
+                    // 激活熔断机制，与手动停止按钮同步
+                    isCircuitBreakerActive = true;
+                    isEAStopped = true;
 
                     if (DeletePendingsOnLoss)
                     {
                         DeleteAllPendingOrders();
                     }
 
-                    // 顯示暫停信息並立即退出，開始倒數計時
+                    // 显示暂停信息并立即退出，开始倒数计时
                     remainingSeconds = pauseEndTime - TimeCurrent();
-                    Comment("EA PAUSED due to a recent loss. \n",
-                            "Resuming in ", remainingSeconds / 60, " min ", remainingSeconds % 60, " sec.");
+                    Comment("[CIRCUIT BREAKER] 熔断机制激活 - 亏损后自动暂停\n",
+                            "剩余时间: ", remainingSeconds / 60, " 分 ", remainingSeconds % 60, " 秒\n",
+                            "点击绿色按钮可继续运行");
                     return(0);
                 }
-                break; // 找到最近的虧損訂單後就停止搜索
+                break; // 找到最近的亏损订单后就停止搜索
             }
         }
     }
-    // ================== 新版熔斷機制結束 ==================
+    // ================== 新版熔断机制结束 ==================
 
-    // 如果EA未被暫停，則執行以下正常的交易邏輯
+    // 如果EA未被暂停，则执行以下正常的交易逻辑
     Display_Info();
     
-    // 更新點差顯示
+    // 更新点差显示
     if (ShowSpread)
     {
         ShowSpreadOnChart();
     }
     
-    // 更新停止按鈕顯示狀態
+    // 更新停止按钮显示状态
     if (ShowStopButton)
     {
-        CreateStopButton(); // 確保按鈕顯示狀態正確
+        CreateStopButton(); // 确保按钮显示状态正确
     }
     
     Local_2_in = 0 ;
@@ -504,14 +526,14 @@ int start()
 }
 //start <<==--------   --------
 
-// +++++++++++++++ 新增: 刪除所有掛單的輔助函數 +++++++++++++++
+// +++++++++++++++ 新增: 删除所有挂单的辅助函数 +++++++++++++++
 void DeleteAllPendingOrders()
 {
     for (int i = OrdersTotal() - 1; i >= 0; i--)
     {
         if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
         {
-            // 確保是本EA的掛單
+            // 确保是本EA的挂单
             if (OrderSymbol() == Symbol() && OrderMagicNumber() == magicnumber)
             {
                 if (OrderType() == OP_BUYSTOP || OrderType() == OP_SELLSTOP)
@@ -533,10 +555,10 @@ void DeleteAllPendingOrders()
 
 int deinit()
 {
- // 删除點差顯示對象
+ // 删除点差显示对象
  ObjectDelete(SPREAD_OBJ_NAME);
  
- // 删除手動停止按鈕對象
+ // 删除手动停止按钮对象
  ObjectDelete(STOP_BUTTON_NAME);
  
  ObjectsDeleteAll(-1,-1);
@@ -615,7 +637,7 @@ int deinit()
  }
 //LABEL <<==--------   --------
 
-// *** FIX: 恢復被遺漏的 dTime() 函數 ***
+// *** FIX: 恢复被遗漏的 dTime() 函数 ***
 bool dTime()
 {
  bool      ans = false;
@@ -628,12 +650,12 @@ bool dTime()
 }
 //dTime <<==--------   --------
 
-// +++ MODIFICATION: 直接在此函數內部完成四舍五入和所有安全檢查 +++
+// +++ MODIFICATION: 直接在此函数内部完成四舍五入和所有安全检查 +++
 double LotsOptimized()
 {
-  double    raw_lot; // 計算出的原始理論手數
+  double    raw_lot; // 计算出的原始理论手数
   
-  // 1. 根據 AutoLot 設置，確定原始手數
+  // 1. 根据 AutoLot 设置，确定原始手数
   if (AutoLot)
   {
     raw_lot = AccountBalance() / zong_2_do * zong_1_do;
@@ -643,16 +665,16 @@ double LotsOptimized()
     raw_lot = FixLot;
   }
 
-  // 2. 獲取交易品種的規則
+  // 2. 获取交易品种的规则
   double lot_step = MarketInfo(Symbol(), MODE_LOTSTEP);
   double min_lot  = MarketInfo(Symbol(), MODE_MINLOT);
   double max_lot  = MarketInfo(Symbol(), MODE_MAXLOT);
 
-  // 3. 核心四舍五入邏輯
+  // 3. 核心四舍五入逻辑
   //    (e.g., MathRound(0.129 / 0.01) * 0.01  ->  MathRound(12.9) * 0.01  ->  13 * 0.01  ->  0.13)
   double final_lot = MathRound(raw_lot / lot_step) * lot_step;
 
-  // 4. 安全鉗制 (Clamping)
+  // 4. 安全钳制 (Clamping)
   if (final_lot < min_lot)
   {
     final_lot = min_lot;
@@ -662,12 +684,12 @@ double LotsOptimized()
     final_lot = max_lot;
   }
 
-  // 5. 返回最終處理好的、安全且精確的手數
+  // 5. 返回最终处理好的、安全且精确的手数
   return(final_lot);
 }
 //<<==LotsOptimized <<==
 
-// +++++++++++++++ 點差顯示功能 +++++++++++++++
+// +++++++++++++++ 点差显示功能 +++++++++++++++
 void ShowSpreadOnChart()
 {
     static double spread;
@@ -684,21 +706,21 @@ void DrawSpreadOnChart(double spread)
     if(ObjectFind(SPREAD_OBJ_NAME) < 0)
     {
         ObjectCreate(SPREAD_OBJ_NAME, OBJ_LABEL, 0, 0, 0);
-        ObjectSet(SPREAD_OBJ_NAME, OBJPROP_CORNER, 2);        // 左下角
-        ObjectSet(SPREAD_OBJ_NAME, OBJPROP_YDISTANCE, 12);    // Y距離
-        ObjectSet(SPREAD_OBJ_NAME, OBJPROP_XDISTANCE, 3);     // X距離
+        ObjectSet(SPREAD_OBJ_NAME, OBJPROP_CORNER, 1);        // 右上角
+        ObjectSet(SPREAD_OBJ_NAME, OBJPROP_YDISTANCE, 75);    // Y距离（在按钮下面）
+        ObjectSet(SPREAD_OBJ_NAME, OBJPROP_XDISTANCE, 50);    // X距离（继续向右移动）
         ObjectSetText(SPREAD_OBJ_NAME, s, SpreadFontSize, "FixedSys", SpreadColor);
     }
     else
     {
-        // 更新文本內容和格式
+        // 更新文本内容和格式
         ObjectSetText(SPREAD_OBJ_NAME, s, SpreadFontSize, "FixedSys", SpreadColor);
     }
     
     WindowRedraw();
 }
 
-// +++++++++++++++ 手動停止按鈕功能 +++++++++++++++
+// +++++++++++++++ 手动停止按钮功能 +++++++++++++++
 void CreateStopButton()
 {
     string buttonText;
@@ -706,31 +728,52 @@ void CreateStopButton()
     
     if (!isEAStopped)
     {
-        buttonText = "⛔ 停止EA";
+        buttonText = "[STOP] 停止EA";
         textColor = StopButtonColor;
         bgColor = StopButtonBgColor;
     }
     else
     {
-        buttonText = "▶ 繼續運行";
-        textColor = ContinueButtonColor;
-        bgColor = ContinueButtonBgColor;
+        if (isCircuitBreakerActive)
+        {
+            // 熔断机制激活状态
+            long remainingSeconds = pauseEndTime - TimeCurrent();
+            if (remainingSeconds > 0)
+            {
+                buttonText = "[CB] 熔断" + IntegerToString(remainingSeconds / 60) + ":" + IntegerToString(remainingSeconds % 60, 2, '0');
+                textColor = Orange; // 熔断状态用橙色
+                bgColor = Yellow;   // 背景用黄色
+            }
+            else
+            {
+                buttonText = "[GO] 继续运行";
+                textColor = ContinueButtonColor;
+                bgColor = ContinueButtonBgColor;
+            }
+        }
+        else
+        {
+            // 手动停止状态
+            buttonText = "[GO] 继续运行";
+            textColor = ContinueButtonColor;
+            bgColor = ContinueButtonBgColor;
+        }
     }
     
     if(ObjectFind(STOP_BUTTON_NAME) < 0)
     {
         ObjectCreate(STOP_BUTTON_NAME, OBJ_BUTTON, 0, 0, 0);
         ObjectSet(STOP_BUTTON_NAME, OBJPROP_CORNER, 1);        // 右上角
-        ObjectSet(STOP_BUTTON_NAME, OBJPROP_XDISTANCE, 70);    // X距離（繼續往左移動）
-        ObjectSet(STOP_BUTTON_NAME, OBJPROP_YDISTANCE, 30);    // Y距離
-        ObjectSet(STOP_BUTTON_NAME, OBJPROP_XSIZE, 90);        // 按鈕寬度（略微增加）
-        ObjectSet(STOP_BUTTON_NAME, OBJPROP_YSIZE, 25);        // 按鈕高度
-        ObjectSet(STOP_BUTTON_NAME, OBJPROP_STATE, false);     // 按鈕狀態
+        ObjectSet(STOP_BUTTON_NAME, OBJPROP_XDISTANCE, 150);   // X距离（进一步往左移动）
+        ObjectSet(STOP_BUTTON_NAME, OBJPROP_YDISTANCE, 30);    // Y距离
+        ObjectSet(STOP_BUTTON_NAME, OBJPROP_XSIZE, 120);       // 按钮宽度（放大）
+        ObjectSet(STOP_BUTTON_NAME, OBJPROP_YSIZE, 35);        // 按钮高度（放大）
+        ObjectSet(STOP_BUTTON_NAME, OBJPROP_STATE, false);     // 按钮状态
     }
     
-    // 更新按鈕外觀
-    ObjectSet(STOP_BUTTON_NAME, OBJPROP_COLOR, textColor);     // 文字顏色
-    ObjectSet(STOP_BUTTON_NAME, OBJPROP_BGCOLOR, bgColor);     // 背景顏色
+    // 更新按钮外观
+    ObjectSet(STOP_BUTTON_NAME, OBJPROP_COLOR, textColor);     // 文字颜色
+    ObjectSet(STOP_BUTTON_NAME, OBJPROP_BGCOLOR, bgColor);     // 背景颜色
     ObjectSetText(STOP_BUTTON_NAME, buttonText, StopButtonFontSize, "Arial Bold");
     
     WindowRedraw();
@@ -743,34 +786,42 @@ void CheckStopButtonClick()
         if (!isEAStopped)
         {
             // 停止EA
-            Print("手動停止EA - 正在刪除所有掛單...");
+            Print("手动停止EA - 正在删除所有挂单...");
             
-            // 設置停止狀態
+            // 设置停止状态
             isEAStopped = true;
             
-            // 刪除所有本 EA 的掛單
+            // 删除所有本 EA 的挂单
             DeleteAllPendingOrders();
             
-            Print("手動停止EA - 所有掛單已刪除，交易已停止。");
+            Print("手动停止EA - 所有挂单已删除，交易已停止。");
         }
         else
         {
-            // 繼續運行EA
-            Print("手動重啟EA - 正在繼續運行...");
+            // 继续运行EA
+            if (isCircuitBreakerActive)
+            {
+                // 手动终止熔断机制
+                Print("手动终止熔断机制 - 正在继续运行...");
+                isCircuitBreakerActive = false;
+                pauseEndTime = 0; // 清除熔断时间
+            }
+            else
+            {
+                // 普通手动重启
+                Print("手动重启EA - 正在继续运行...");
+            }
             
-            // 重置停止狀態
+            // 重置停止状态
             isEAStopped = false;
             
-            // 清空熔断機制狀態（如果有）
-            pauseEndTime = 0;
-            
-            Print("手動重啟EA - EA已繼續運行。");
+            Print("手动重启EA - EA已继续运行。");
         }
         
-        // 更新按鈕外觀
+        // 更新按钮外观
         CreateStopButton();
         
-        // 重置按鈕狀態（避免重複触發）
+        // 重置按钮状态（避免重复触发）
         ObjectSet(STOP_BUTTON_NAME, OBJPROP_STATE, false);
         
         WindowRedraw();
