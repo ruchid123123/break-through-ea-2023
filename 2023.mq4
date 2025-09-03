@@ -1,7 +1,7 @@
 enum Option1      {Expert = 10,Moderate = 20,Safe = 30  };
 
 //------------------
-extern string 注释 = "突破黄金-EA【2023】(帶有虧損後倒計時暫停功能)";
+extern string 注释 = "专做数据行情超短线";
 extern string Configuration="==== Setting ===="  ;
 extern int   magicnumber=333  ;//和熔断机制相关，尽量为333
 extern bool AutoLot=true  ;
@@ -18,8 +18,15 @@ extern int   StopHour=23  ;   // (时间过滤)
 // +++++++++++++++ 新增的熔斷機制設置 +++++++++++++++
 extern string LossSetting = "==== Stop on Loss Setting ====";
 extern bool   PauseOnLoss_Enabled = true;     // 開啟/關閉 虧損後暫停功能
-extern int    PauseDuration_Minutes = 30;     // 暫停時間（分鐘）
+extern int    PauseDuration_Minutes = 1;     // 暫停時間（分鐘）
 extern bool   DeletePendingsOnLoss = true;    // 虧損時是否刪除所有掛單
+
+// +++++++++++++++ 點差顯示設置 +++++++++++++++
+extern string SpreadSetting = "==== Spread Display Setting ====";
+extern bool   ShowSpread = true;              // 是否顯示點差
+extern int    SpreadFontSize = 20;            // 點差顯示字體大小
+extern color  SpreadColor = Red;              // 點差顯示顏色
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   double    zong_1_do = 0.3;
@@ -49,7 +56,10 @@ extern bool   DeletePendingsOnLoss = true;    // 虧損時是否刪除所有掛�
 
 // +++++++++++++++ 新增的狀態變量 +++++++++++++++
 datetime pauseEndTime = 0; // 用於記錄暫停結束的時間戳
-datetime lastLossTime = 0; // 記錄最後一次亏損的时间，避免重複觸發
+datetime lastLossTime = 0; // 記錄最後一次亏損的時間，避免重複觸發
+
+// +++++++++++++++ 點差顯示變量 +++++++++++++++
+#define SPREAD_OBJ_NAME "SpreadDisplayObj"
 // ++++++++++++++++++++++++++++++++++++++++++++++++
 
  int init()
@@ -116,6 +126,13 @@ datetime lastLossTime = 0; // 記錄最後一次亏損的时间，避免重複�
    LotDigits = 5 ;
  }
  zong_25_do = (Local_2_do - Local_3_do) / Point() / xt ;
+ 
+ // 初始化點差顯示
+ if (ShowSpread)
+ {
+   ShowSpreadOnChart();
+ }
+ 
  return(0);
  }
 //init <<==--------   --------
@@ -195,6 +212,13 @@ int start()
 
     // 如果EA未被暫停，則執行以下正常的交易邏輯
     Display_Info();
+    
+    // 更新點差顯示
+    if (ShowSpread)
+    {
+        ShowSpreadOnChart();
+    }
+    
     Local_2_in = 0 ;
     Local_3_do = 0.0 ;
     Local_4_do = 0.0 ;
@@ -468,6 +492,9 @@ void DeleteAllPendingOrders()
 
 int deinit()
 {
+ // 删除點差顯示對象
+ ObjectDelete(SPREAD_OBJ_NAME);
+ 
  ObjectsDeleteAll(-1,-1);
  return(0);
 }
@@ -595,3 +622,35 @@ double LotsOptimized()
   return(final_lot);
 }
 //<<==LotsOptimized <<==
+
+// +++++++++++++++ 點差顯示功能 +++++++++++++++
+void ShowSpreadOnChart()
+{
+    static double spread;
+    
+    spread = MarketInfo(Symbol(), MODE_SPREAD);
+    
+    DrawSpreadOnChart(spread);
+}
+
+void DrawSpreadOnChart(double spread)
+{
+    string s = "点差: " + DoubleToStr(spread, 0) + " 点";
+    
+    if(ObjectFind(SPREAD_OBJ_NAME) < 0)
+    {
+        ObjectCreate(SPREAD_OBJ_NAME, OBJ_LABEL, 0, 0, 0);
+        ObjectSet(SPREAD_OBJ_NAME, OBJPROP_CORNER, 2);        // 左下角
+        ObjectSet(SPREAD_OBJ_NAME, OBJPROP_YDISTANCE, 12);    // Y距離
+        ObjectSet(SPREAD_OBJ_NAME, OBJPROP_XDISTANCE, 3);     // X距離
+        ObjectSetText(SPREAD_OBJ_NAME, s, SpreadFontSize, "FixedSys", SpreadColor);
+    }
+    else
+    {
+        // 更新文本內容和格式
+        ObjectSetText(SPREAD_OBJ_NAME, s, SpreadFontSize, "FixedSys", SpreadColor);
+    }
+    
+    WindowRedraw();
+}
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++
