@@ -21,10 +21,10 @@ extern bool   PauseOnLoss_Enabled = true;     // 开启/关闭 亏损后暂停�
 extern int    PauseDuration_Minutes = 1;     // 暂停时间（分钟）
 extern bool   DeletePendingsOnLoss = true;    // 亏损时是否删除所有挂单
 
-// +++++++++++++++ 点差显示设置 +++++++++++++++
-extern string SpreadSetting = "==== Spread Display Setting ====";
-extern int    SpreadFontSize = 16;            // 点差显示字体大小
-extern color  SpreadColor = Red;              // 点差显示颜色
+// +++++++++++++++ 市场信息显示设置（价格+点差） +++++++++++++++
+extern string SpreadSetting = "==== Price & Spread Display Setting ====";
+extern int    SpreadFontSize = 16;            // 价格和点差显示字体大小
+extern color  SpreadColor = White;            // 价格和点差显示颜色
 
 // +++++++++++++++ 手动停止按钮设置 +++++++++++++++
 extern string ManualStopSetting = "==== Manual Stop Button Setting ====";
@@ -68,8 +68,8 @@ datetime pauseEndTime = 0; // 用于记录暂停结束的时间戳
 datetime lastLossTime = 0; // 记录最后一次亏损的时间，避免重复触发
 bool isCircuitBreakerActive = false; // 熔断机制激活状态
 
-// +++++++++++++++ 点差显示变量 +++++++++++++++
-#define SPREAD_OBJ_NAME "SpreadDisplayObj"
+// +++++++++++++++ 市场信息显示变量（价格+点差） +++++++++++++++
+#define SPREAD_OBJ_NAME "PriceSpreadDisplayObj"
 
 // +++++++++++++++ 手动停止按钮变量 +++++++++++++++
 #define STOP_BUTTON_NAME "ManualStopButton"
@@ -149,7 +149,7 @@ bool isEAStopped = false;                     // EA手动停止状态
  
  Print("EA已启动 - 初始状态：正常运行");
  
- // 初始化点差显示（默认开启）
+ // 初始化市场信息显示（价格+点差，默认开启）
  ShowSpreadOnChart();
  
  // 初始化手动停止按钮
@@ -167,7 +167,7 @@ int start()
     // ================== 实时显示更新（始终执行） ==================
     // 无论EA是否停止，都要保持价格和点差的实时显示
     
-    // 更新点差显示（默认开启，保持持续显示）
+    // 更新市场信息显示（价格+点差，默认开启，保持持续显示）
     ShowSpreadOnChart();
     
     // 更新停止按钮显示状态（保持持续显示）
@@ -564,7 +564,7 @@ void DeleteAllPendingOrders()
 
 int deinit()
 {
- // 删除点差显示对象
+ // 删除市场信息显示对象（价格+点差）
  ObjectDelete(SPREAD_OBJ_NAME);
  
  // 删除手动停止按钮对象
@@ -698,7 +698,7 @@ double LotsOptimized()
 }
 //<<==LotsOptimized <<==
 
-// +++++++++++++++ 点差显示功能 +++++++++++++++
+// +++++++++++++++ 市场信息显示功能（统一的价格+点差显示） +++++++++++++++
 void ShowSpreadOnChart()
 {
     static double spread;
@@ -711,7 +711,8 @@ void ShowSpreadOnChart()
 void DrawSpreadOnChart(double spread)
 {
     // 使用Bid获取当前价格，并将价格显示在点差数字前面
-    string s = DoubleToStr(Bid, Digits) + " | " + DoubleToStr(spread, 0) + " 点";
+    // 价格和点差都使用相同的SpreadFontSize和SpreadColor参数配置
+    string s = IntegerToString((int)Bid) + "元 及 " + DoubleToStr(spread, 0) + " 點";
     
     if(ObjectFind(SPREAD_OBJ_NAME) < 0)
     {
@@ -719,12 +720,12 @@ void DrawSpreadOnChart(double spread)
         ObjectSet(SPREAD_OBJ_NAME, OBJPROP_CORNER, 1);        // 右上角
         ObjectSet(SPREAD_OBJ_NAME, OBJPROP_YDISTANCE, 75);    // Y距离（在按钮下面）
         ObjectSet(SPREAD_OBJ_NAME, OBJPROP_XDISTANCE, 50);    // X距离（继续向右移动）
-        ObjectSetText(SPREAD_OBJ_NAME, s, SpreadFontSize, "FixedSys", SpreadColor);
+        ObjectSetText(SPREAD_OBJ_NAME, s, SpreadFontSize, "Times New Roman", SpreadColor);
     }
     else
     {
-        // 更新文本内容和格式
-        ObjectSetText(SPREAD_OBJ_NAME, s, SpreadFontSize, "FixedSys", SpreadColor);
+        // 更新文本内容和格式（价格和点差统一使用SpreadFontSize和SpreadColor）
+        ObjectSetText(SPREAD_OBJ_NAME, s, SpreadFontSize, "Times New Roman", SpreadColor);
     }
     
     WindowRedraw();
@@ -738,7 +739,7 @@ void CreateStopButton()
     
     if (!isEAStopped)
     {
-        buttonText = "[STOP] 停止EA";
+        buttonText = "暫停EA";
         textColor = StopButtonColor;
         bgColor = StopButtonBgColor;
     }
@@ -750,13 +751,13 @@ void CreateStopButton()
             long remainingSeconds = pauseEndTime - TimeCurrent();
             if (remainingSeconds > 0)
             {
-                buttonText = "[CB] 熔断" + IntegerToString(remainingSeconds / 60) + ":" + IntegerToString(remainingSeconds % 60, 2, '0');
+                buttonText = "熔斷" + IntegerToString(remainingSeconds / 60) + ":" + IntegerToString(remainingSeconds % 60, 2, '0');
                 textColor = Orange; // 熔断状态用橙色
                 bgColor = Yellow;   // 背景用黄色
             }
             else
             {
-                buttonText = "[GO] 继续运行";
+                buttonText = "繼續運行";
                 textColor = ContinueButtonColor;
                 bgColor = ContinueButtonBgColor;
             }
@@ -764,7 +765,7 @@ void CreateStopButton()
         else
         {
             // 手动停止状态
-            buttonText = "[GO] 继续运行";
+            buttonText = "繼續運行";
             textColor = ContinueButtonColor;
             bgColor = ContinueButtonBgColor;
         }
@@ -784,7 +785,7 @@ void CreateStopButton()
     // 更新按钮外观
     ObjectSet(STOP_BUTTON_NAME, OBJPROP_COLOR, textColor);     // 文字颜色
     ObjectSet(STOP_BUTTON_NAME, OBJPROP_BGCOLOR, bgColor);     // 背景颜色
-    ObjectSetText(STOP_BUTTON_NAME, buttonText, StopButtonFontSize, "Arial Bold");
+    ObjectSetText(STOP_BUTTON_NAME, buttonText, StopButtonFontSize, "Times New Roman");
     
     WindowRedraw();
 }
