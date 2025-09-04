@@ -1,79 +1,81 @@
+// 風險等級枚舉：專家級(10) - 激進 / 穩健級(20) - 平衡 / 安全級(30) - 保守
 enum Option1      {Expert = 10,Moderate = 20,Safe = 30  };
 
 //------------------
 extern string 注释 = "专做数据行情超短线";
 extern string Configuration="==== Setting ===="  ;
-extern int   magicnumber=333  ;//和熔断机制相关，尽量为333
-extern bool AutoLot=true  ;
-extern  Option1  AutoLotMode=20  ;
-extern double FixLot=0.01  ;
+extern int   magicnumber=333  ;// 魔術號：用於識別本EA訂單，與熔斷機制相關
+extern bool AutoLot=true  ;// 自動手數計算：true=根據帳戶餘額自動計算，false=使用固定手數
+extern  Option1  AutoLotMode=20  ;// 風險等級：10=激進 20=穩健 30=保守（影響自動手數計算）
+extern double FixLot=0.01  ;// 固定手數：當AutoLot=false時使用的手數大小
 extern string OrderSetting="=== Leave as Default ===="  ;
-extern int   stoploss=162  ;  // (止损)
-extern int   takeprofit=1300  ;   // (止盈)
-extern int   step=162  ;  //(挂单距离)
+extern int   stoploss=162  ;// 止損距離（點數）：已優化為黃金分割比例
+extern int   takeprofit=1300  ;// 止盈距離（點數）：目標盈利點數
+extern int   step=162  ;// 掛單距離（點數）：掛單距離當前價格的點數
 extern string Config="==== Time Filter ===="  ;
-extern int   StartHour=1  ;   // (时间过滤)
-extern int   StopHour=23  ;   // (时间过滤)
+extern int   StartHour=1  ;// 開始交易時間（小時）：0-23，建議設定在重要數據發布前
+extern int   StopHour=23  ;// 停止交易時間（小時）：0-23，建議設定在重要數據發布後
 
-// +++++++++++++++ 新增的熔断机制设置 +++++++++++++++
+// +++++++++++++++ 熔斷機制設置：虧損後自動暫停交易防止連續虧損 +++++++++++++++
 extern string LossSetting = "==== Stop on Loss Setting =====";
-extern bool   PauseOnLoss_Enabled = true;     // 开启/关闭 亏损后暂停功能
-extern int    PauseDuration_Minutes = 1;     // 暂停时间（分钟）
-extern bool   DeletePendingsOnLoss = true;    // 亏损时是否删除所有挂单
+extern bool   PauseOnLoss_Enabled = true;     // 啟用虧損後暫停功能：防止連續虧損
+extern int    PauseDuration_Minutes = 1;     // 暫停時長（分鐘）：虧損後的冷靜期
+extern bool   DeletePendingsOnLoss = true;    // 虧損時是否刪除所有掛單：清理未成交訂單
 
-// +++++++++++++++ 市场信息显示设置（价格+点差） +++++++++++++++
+// +++++++++++++++ 市場資訊顯示設置：統一價格和點差的顯示參數 +++++++++++++++
 extern string SpreadSetting = "==== Price & Spread Display Setting ====";
-extern int    SpreadFontSize = 16;            // 价格和点差显示字体大小
-extern color  SpreadColor = White;            // 价格和点差显示颜色
+extern int    SpreadFontSize = 16;            // 市場信息字體大小：價格和點差統一字體
+extern color  SpreadColor = White;            // 市場信息顏色：價格和點差統一顏色
 
-// +++++++++++++++ 手动停止按钮设置 +++++++++++++++
+// +++++++++++++++ 手動控制按鈕設置：界面交互控制 +++++++++++++++
 extern string ManualStopSetting = "==== Manual Stop Button Setting ====";
-extern bool   ShowStopButton = true;          // 是否显示停止按钮
-extern int    StopButtonFontSize = 14;        // 停止按钮字体大小
-extern color  StopButtonColor = Red;          // 停止按钮颜色
-extern color  StopButtonBgColor = White;      // 停止按钮背景颜色
-extern color  ContinueButtonColor = Green;    // 继续按钮颜色
-extern color  ContinueButtonBgColor = LightGreen; // 继续按钮背景颜色
+// extern bool   ShowStopButton = true;          // 已移除：按鈕始終顯示，無需配置開關
+extern int    StopButtonFontSize = 14;        // 暫停按鈕字體大小
+extern color  StopButtonColor = Red;          // 暫停按鈕文字顏色
+extern color  StopButtonBgColor = White;      // 暫停按鈕背景顏色
+extern color  ContinueButtonColor = Green;    // 繼續按鈕文字顏色
+extern color  ContinueButtonBgColor = LightGreen; // 繼續按鈕背景顏色
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  double    zong_1_do = 0.3;
-  double    zong_2_do = AutoLotMode * 100;
-  int       zong_3_in = 250;
-  int       zong_4_in = 200;
-  int       zong_5_in = 100;
-  int       zong_6_in = 50;
-  int       zong_7_in = 100;
-  int       zong_8_in = 50;
-  int       zong_9_in = 800;
-  int       zong_10_in = 100;
-  int       zong_11_in = 50;
-  
-  int       xt = 0;
-  double    zong_18_do = 0.0;
-  int       zong_19_in = 0;
-  int       zong_20_in = 10;
-  int       zong_21_in = 0;
-  int       zong_22_in = 0;
-  int       zong_23_in = 1;//挂单频率，默认为5
-  int       zong_24_in = 30;//价格变动，默认为30
-  double    zong_25_do = 0.0;
-  double    zong_26_do = 0.0;
-  int       LotDigits = 0;
-  double    lots = 0.0;
+// +++++++++++++++ 交易參數配置變數：細節控制EA交易行為 +++++++++++++++
+  double    zong_1_do = 0.3;        // 風險係數：用於自動手數計算的乘數因子
+  double    zong_2_do = AutoLotMode * 100;  // 風險除數：根據AutoLotMode自動計算（AutoLotMode×100）
+  int       zong_3_in = 250;        // 第一階段止損移動步長（點數）
+  int       zong_4_in = 200;        // 基礎止損距離（點數）
+  int       zong_5_in = 100;        // 第二階段止損移動距離（點數）
+  int       zong_6_in = 50;         // 第二階段止損移動步長（點數）
+  int       zong_7_in = 100;        // 第三階段止損移動距離（點數）
+  int       zong_8_in = 50;         // 第三階段止損移動步長（點數）
+  int       zong_9_in = 800;        // 高級止損闾值（點數）
+  int       zong_10_in = 100;       // 最終階段止損距離（點數）
+  int       zong_11_in = 50;        // 最終階段止損步長（點數）
+// +++++++++++++++ 交易狀態控制變數：跟蹤和管理交易狀態 +++++++++++++++
+  int       xt = 0;                 // 點值倍數：根據小數位數計算（3或5位時為10，否則為1）
+  double    zong_18_do = 0.0;       // 市場特性緩衝區（MODE_FREEZELEVEL）
+  int       zong_19_in = 0;         // 當前交易緩衝區距離
+  int       zong_20_in = 10;        // 訂單滑點容忍值（點數）
+  int       zong_21_in = 0;         // 上次Buy Stop訂單時間戳
+  int       zong_22_in = 0;         // 上次Sell Stop訂單時間戳
+  int       zong_23_in = 1;         // 掛單頻率控制（秒），預設為1秒
+  int       zong_24_in = 30;        // 價格變動闾值（點數），超過此值才移動掛單
+  double    zong_25_do = 0.0;       // 計算出的點差值
+  double    zong_26_do = 0.0;       // 手數步長（MODE_LOTSTEP）
+  int       LotDigits = 0;          // 手數小數位數
+  double    lots = 0.0;             // 當前計算出的交易手數
 
-// +++++++++++++++ 新增的状态变量 +++++++++++++++
-datetime pauseEndTime = 0; // 用于记录暂停结束的时间戳
-datetime lastLossTime = 0; // 记录最后一次亏损的时间，避免重复触发
-bool isCircuitBreakerActive = false; // 熔断机制激活状态
+// +++++++++++++++ 熔斷機制狀態變數：虧損後自動暫停功能 +++++++++++++++
+datetime pauseEndTime = 0;              // 熔斷暫停結束時間戳：記錄暫停結束的時間
+datetime lastLossTime = 0;              // 最後一次虧損時間：避免重複觸發熔斷
+bool isCircuitBreakerActive = false;    // 熔斷機制激活狀態：標示是否處於熔斷暫停中
 
-// +++++++++++++++ 市场信息显示变量（价格+点差） +++++++++++++++
-#define SPREAD_OBJ_NAME "PriceSpreadDisplayObj"
+// +++++++++++++++ 市場信息顯示控制：價格和點差統一顯示 +++++++++++++++
+#define SPREAD_OBJ_NAME "PriceSpreadDisplayObj"  // 市場信息顯示物件名稱
 
-// +++++++++++++++ 手动停止按钮变量 +++++++++++++++
-#define STOP_BUTTON_NAME "ManualStopButton"
-bool isEAStopped = false;                     // EA手动停止状态
+// +++++++++++++++ 手動控制按鈕狀態變數：界面交互控制 +++++++++++++++
+#define STOP_BUTTON_NAME "ManualStopButton"     // 手動停止按鈕物件名稱
+bool isEAStopped = false;                   // EA手動暫停狀態：標示使用者是否手動暫停EA
 // ++++++++++++++++++++++++++++++++++++++++++++++++
 
  int init()
@@ -84,6 +86,7 @@ bool isEAStopped = false;                     // EA手动停止状态
  double     tmp_do_1;
  double     tmp_do_2;
 
+ // 檢測小數位數，設定點值倍數（3或5位時需要乘以10）
  if ( ( Digits() == 3 || Digits() == 5 ) )
  {
    xt = 10 ;
@@ -92,7 +95,11 @@ bool isEAStopped = false;                     // EA手动停止状态
  {
    xt = 1 ;
  }
+ 
+ // 獲取市場緩衝區資訊，用於訂單距離驗證
  zong_18_do = MarketInfo(Symbol(),14) ;
+ 
+ // 調整止損參數：確保不小於緩衝區要求
  tmp_do_1 = zong_18_do / xt;
  if ( stoploss <= tmp_do_1 )
  {
@@ -103,6 +110,8 @@ bool isEAStopped = false;                     // EA手动停止状态
    tmp_do_1 = stoploss;
  }
  stoploss = tmp_do_1 ;
+ 
+ // 調整止盈參數：確保不小於緩衝區要求
  if ( takeprofit <= zong_18_do / xt )
  {
    tmp_do_2 = zong_18_do / xt;
@@ -112,9 +121,14 @@ bool isEAStopped = false;                     // EA手动停止状态
    tmp_do_2 = takeprofit;
  }
  takeprofit = tmp_do_2 ;
+ // 獲取交易品種的市場信息：最大和最小手數
  Local_2_do = MarketInfo(Symbol(),10) ;
  Local_3_do = MarketInfo(Symbol(),9) ;
+ 
+ // 獲取手數步長，用於手數精度計算
  zong_26_do = MarketInfo(Symbol(),24) ;
+ 
+ // 根據手數步長確定小數位數
  if ( zong_26_do==1.0 )
  {
    LotDigits = 0 ;
@@ -139,24 +153,23 @@ bool isEAStopped = false;                     // EA手动停止状态
  {
    LotDigits = 5 ;
  }
+ 
+ // 計算點差值（以點數為單位）
  zong_25_do = (Local_2_do - Local_3_do) / Point() / xt ;
  
- // 初始化状态变量 - 确保EA启动时处于正常状态
- pauseEndTime = 0;
- lastLossTime = TimeCurrent(); // 初始化为当前时间，避免历史订单触发熍断
- isCircuitBreakerActive = false;
- isEAStopped = false;
+ // 初始化狀態變數 - 確保EA啟動時處於正常狀態
+ pauseEndTime = 0;                    // 清除熔斷暫停時間
+ lastLossTime = TimeCurrent();        // 初始化為當前時間，避免歷史訂單觸發熔斷
+ isCircuitBreakerActive = false;      // 關閉熔斷機制
+ isEAStopped = false;                 // 設定EA為運行狀態
  
- Print("EA已启动 - 初始状态：正常运行");
+ Print("深度突破EA已啟動 - 初始狀態：正常運行");
  
- // 初始化市场信息显示（价格+点差，默认开启）
+ // 初始化市場信息顯示（價格+點差，預設開啟）
  ShowSpreadOnChart();
  
- // 初始化手动停止按钮
- if (ShowStopButton)
- {
-   CreateStopButton();
- }
+ // 初始化手動停止按鈕
+ CreateStopButton();
  
  return(0);
  }
@@ -164,33 +177,27 @@ bool isEAStopped = false;                     // EA手动停止状态
 
 int start()
 {
-    // ================== 实时显示更新（始终执行） ==================
-    // 无论EA是否停止，都要保持价格和点差的实时显示
+    // ================== 即時顯示更新（始終執行） ==================
+    // 無論EA是否暫停，都要保持價格和點差的即時顯示
     
-    // 更新市场信息显示（价格+点差，默认开启，保持持续显示）
+    // 更新市場信息顯示（價格+點差，預設開啟，保持持續顯示）
     ShowSpreadOnChart();
     
-    // 更新停止按钮显示状态（保持持续显示）
-    if (ShowStopButton)
-    {
-        CreateStopButton();
-    }
-    // ================== 实时显示更新结束 ==================
+    // 更新停止按鈕顯示狀態（保持持續顯示）
+    CreateStopButton();
+    // ================== 即時顯示更新結束 ==================
     
-    // ================== 手动停止检查 ==================
-    // 检查是否按下了停止按钮
-    if (ShowStopButton)
-    {
-        CheckStopButtonClick();
-    }
+    // ================== 手動暫停檢查 ==================
+    // 檢查是否按下了暫停按鈕
+    CheckStopButtonClick();
     
-    // 如果EA已被手动停止，停止所有交易逻辑
+    // 如果EA已被手動暫停，停止所有交易邏輯
     if (isEAStopped)
     {
-        // 默认不显示状态提示信息，保持界面简洁
+        // 預設不顯示狀態提示信息，保持界面簡潔
         return(0);
     }
-    // ================== 手动停止检查结束 ==================
+    // ================== 手動暫停檢查結束 ==================
     
     int       Local_2_in;
     double    Local_3_do;
@@ -210,15 +217,15 @@ int start()
     int       i;
     long      remainingSeconds = 0;
 
-    // =================== 智能熔断机制：亏损后自动暂停交易防止连续亏损 ===================
-    // 功能说明：
-    // 1. 目标：防止连续亏损，通过自动暂停交易冷静期控制风险
-    // 2. 触发条件：检测到本魔术号的交易中有新的亏损订单关闭
-    // 3. 执行时机：每次start()函数调用时检查，确保实时监控
-    // 4. 暂停时长：由PauseDuration_Minutes参数控制（默认1分钟）
-    // 5. 状态同步：与手动停止按钮状态保持一致，统一管理
-    // 6. 可选操作：根据DeletePendingsOnLoss参数决定是否删除所有挂单
-    // 7. 恢复机制：时间到达后自动恢复，或用户手动点击继续按钮
+    // =================== 智能熔斷機制：虧損後自動暫停交易防止連續虧損 ===================
+    // 功能說明：
+    // 1. 目標：防止連續虧損，通過自動暫停交易冷靜期控制風險
+    // 2. 觸發條件：檢測到本魔術號的交易中有新的虧損訂單關閉
+    // 3. 執行時機：每次start()函數調用時檢查，確保即時監控
+    // 4. 暫停時長：由PauseDuration_Minutes參數控制（預設1分鐘）
+    // 5. 狀態同步：與手動暫停按鈕狀態保持一致，統一管理
+    // 6. 可選操作：根據DeletePendingsOnLoss參數決定是否刪除所有掛單
+    // 7. 恢復機制：時間到達後自動恢復，或用戶手動點擊繼續按鈕
     if (PauseOnLoss_Enabled)
     {
         // --- 1. 检查当前是否已处于暂停状态 ---
@@ -535,25 +542,26 @@ int start()
 }
 //start <<==--------   --------
 
-// +++++++++++++++ 新增: 删除所有挂单的辅助函数 +++++++++++++++
+// +++++++++++++++ 熔斷機制輔助函數：刪除所有掛單避免意外成交 +++++++++++++++
 void DeleteAllPendingOrders()
 {
     for (int i = OrdersTotal() - 1; i >= 0; i--)
     {
         if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
         {
-            // 确保是本EA的挂单
+            // 確保是本EA的掛單：檢查交易品種和魔術號
             if (OrderSymbol() == Symbol() && OrderMagicNumber() == magicnumber)
             {
+                // 只處理Buy Stop和Sell Stop掛單，不影響已成交訂單
                 if (OrderType() == OP_BUYSTOP || OrderType() == OP_SELLSTOP)
                 {
                     if (!OrderDelete(OrderTicket()))
                     {
-                        Print("Error deleting pending order #", OrderTicket(), ": ", GetLastError());
+                        Print("刪除掛單錯誤 #", OrderTicket(), ": ", GetLastError());
                     }
                     else
                     {
-                        Print("Pending order #", OrderTicket(), " deleted due to loss pause.");
+                        Print("掛單 #", OrderTicket(), " 已因虧損暫停而刪除。");
                     }
                 }
             }
@@ -564,22 +572,25 @@ void DeleteAllPendingOrders()
 
 int deinit()
 {
- // 删除市场信息显示对象（价格+点差）
+ // 清理界面元素：刪除市場信息顯示物件（價格+點差）
  ObjectDelete(SPREAD_OBJ_NAME);
  
- // 删除手动停止按钮对象
+ // 清理界面元素：刪除手動暫停按鈕物件
  ObjectDelete(STOP_BUTTON_NAME);
  
+ // 清理所有其他物件：確保無殘留
  ObjectsDeleteAll(-1,-1);
  return(0);
 }
 //deinit <<==--------   --------
  void Display_Info()
  {
-  int       Local_1_in;
-  string    Local_2_st;
-  int       Local_3_in;
+  int       Local_1_in;  // 顏色值1：根據秒數變化的彩色顯示
+  string    Local_2_st;  // 分隔線字串：界面裝飾用途
+  int       Local_3_in;  // 顏色值2：根據秒數變化的另一彩色
 //----- -----
+
+ // 每10秒一個循環的時間基础顏色變化系統（用於视覺效果）
 
  if ( Seconds() >= 0 && Seconds() <  10 )
  {
@@ -635,6 +646,8 @@ int deinit()
 //Display_Info <<==--------   --------
  void LABEL( string Para_0_st,string Para_1_st,int Para_2_in,int Para_3_in,int Para_4_in,color Para_5_co,int Para_6_in,string Para_7_st)
  {
+ // 此函數已停用：原為標籤顯示函數，現在由ShowSpreadOnChart()和CreateStopButton()取代
+ // 保留空函數以保持相容性，防止編譯錯誤
  //if ( ObjectFind(Para_0_st) <  0 )
  {
  //  ObjectCreate(Para_0_st,OBJ_LABEL,0,0,0.0,0,0.0,0,0.0);
@@ -646,31 +659,34 @@ int deinit()
  }
 //LABEL <<==--------   --------
 
-// *** FIX: 恢复被遗漏的 dTime() 函数 ***
+// *** 時間過濾函數：檢查當前時間是否在交易時間範圍內 ***
 bool dTime()
 {
- bool      ans = false;
+ bool      ans = false;  // 返回值：是否允許交易
 //----- -----
+ // 檢查當前小時是否在設定的交易時間範圍內
  if ( Hour() >= StartHour && Hour() <  StopHour )
  {
-   ans = true ;
+   ans = true ;  // 在交易時間內，允許交易
  }
- return(ans);
+ return(ans);  // 返回檢查結果
 }
 //dTime <<==--------   --------
 
-// +++ MODIFICATION: 直接在此函数内部完成四舍五入和所有安全检查 +++
+// +++ 智能手數優化函數：自動計算最佳交易手數並精確處理 +++
 double LotsOptimized()
 {
-  double    raw_lot; // 计算出的原始理论手数
+  double    raw_lot; // 計算出的原始理論手數
   
-  // 1. 根据 AutoLot 设置，确定原始手数
+  // 1. 根據 AutoLot 設置，確定原始手數
   if (AutoLot)
   {
+    // 自動計算：帳戶餘額 / 風險除數 * 風險係數
     raw_lot = AccountBalance() / zong_2_do * zong_1_do;
   }
   else
   {
+    // 使用固定手數
     raw_lot = FixLot;
   }
 
@@ -698,47 +714,52 @@ double LotsOptimized()
 }
 //<<==LotsOptimized <<==
 
-// +++++++++++++++ 市场信息显示功能（统一的价格+点差显示） +++++++++++++++
+// +++++++++++++++ 市場信息顯示功能：統一的價格和點差即時顯示 +++++++++++++++
 void ShowSpreadOnChart()
 {
-    static double spread;
+    static double spread;  // 靜態變數：緩存點差值減少重複計算
     
+    // 獲取當前點差值（以點數為單位）
     spread = MarketInfo(Symbol(), MODE_SPREAD);
     
+    // 調用繪製函數進行顯示
     DrawSpreadOnChart(spread);
 }
 
 void DrawSpreadOnChart(double spread)
 {
-    // 使用Bid获取当前价格，并将价格显示在点差数字前面
-    // 价格和点差都使用相同的SpreadFontSize和SpreadColor参数配置
+    // 使用Bid獲取當前價格，顯示為繁體中文格式："價格元 及 點差 點"
+    // 價格和點差都使用相同的SpreadFontSize和SpreadColor參數配置
     string s = IntegerToString((int)Bid) + "元 及 " + DoubleToStr(spread, 0) + " 點";
     
     if(ObjectFind(SPREAD_OBJ_NAME) < 0)
     {
+        // 初次創建市場信息顯示物件
         ObjectCreate(SPREAD_OBJ_NAME, OBJ_LABEL, 0, 0, 0);
-        ObjectSet(SPREAD_OBJ_NAME, OBJPROP_CORNER, 1);        // 右上角
-        ObjectSet(SPREAD_OBJ_NAME, OBJPROP_YDISTANCE, 75);    // Y距离（在按钮下面）
-        ObjectSet(SPREAD_OBJ_NAME, OBJPROP_XDISTANCE, 50);    // X距离（继续向右移动）
+        ObjectSet(SPREAD_OBJ_NAME, OBJPROP_CORNER, 1);        // 右上角位置
+        ObjectSet(SPREAD_OBJ_NAME, OBJPROP_YDISTANCE, 75);    // Y距離（在按鈕下面）
+        ObjectSet(SPREAD_OBJ_NAME, OBJPROP_XDISTANCE, 50);    // X距離（向右移動）
         ObjectSetText(SPREAD_OBJ_NAME, s, SpreadFontSize, "Times New Roman", SpreadColor);
     }
     else
     {
-        // 更新文本内容和格式（价格和点差统一使用SpreadFontSize和SpreadColor）
+        // 更新文本內容和格式（價格和點差統一使用SpreadFontSize和SpreadColor）
         ObjectSetText(SPREAD_OBJ_NAME, s, SpreadFontSize, "Times New Roman", SpreadColor);
     }
     
+    // 刷新圖表顯示
     WindowRedraw();
 }
 
-// +++++++++++++++ 手动停止按钮功能 +++++++++++++++
+// +++++++++++++++ 手動控制按鈕功能：智能狀態顯示和交互控制 +++++++++++++++
 void CreateStopButton()
 {
-    string buttonText;
-    color textColor, bgColor;
+    string buttonText;  // 按鈕顯示文字
+    color textColor, bgColor;  // 按鈕文字和背景顏色
     
     if (!isEAStopped)
     {
+        // EA正常運行狀態：顯示暫停按鈕
         buttonText = "暫停EA";
         textColor = StopButtonColor;
         bgColor = StopButtonBgColor;
@@ -747,13 +768,13 @@ void CreateStopButton()
     {
         if (isCircuitBreakerActive)
         {
-            // 熔断机制激活状态
+            // 熔斷機制激活狀態：顯示倒數計時
             long remainingSeconds = pauseEndTime - TimeCurrent();
             if (remainingSeconds > 0)
             {
                 buttonText = "熔斷" + IntegerToString(remainingSeconds / 60) + ":" + IntegerToString(remainingSeconds % 60, 2, '0');
-                textColor = Orange; // 熔断状态用橙色
-                bgColor = Yellow;   // 背景用黄色
+                textColor = Orange; // 熔斷狀態用橙色
+                bgColor = Yellow;   // 背景用黃色
             }
             else
             {
@@ -764,7 +785,7 @@ void CreateStopButton()
         }
         else
         {
-            // 手动停止状态
+            // 手動暫停狀態：顯示繼續按鈕
             buttonText = "繼續運行";
             textColor = ContinueButtonColor;
             bgColor = ContinueButtonBgColor;
@@ -773,68 +794,72 @@ void CreateStopButton()
     
     if(ObjectFind(STOP_BUTTON_NAME) < 0)
     {
+        // 初次創建手動控制按鈕
         ObjectCreate(STOP_BUTTON_NAME, OBJ_BUTTON, 0, 0, 0);
-        ObjectSet(STOP_BUTTON_NAME, OBJPROP_CORNER, 1);        // 右上角
-        ObjectSet(STOP_BUTTON_NAME, OBJPROP_XDISTANCE, 150);   // X距离（进一步往左移动）
-        ObjectSet(STOP_BUTTON_NAME, OBJPROP_YDISTANCE, 30);    // Y距离
-        ObjectSet(STOP_BUTTON_NAME, OBJPROP_XSIZE, 120);       // 按钮宽度（放大）
-        ObjectSet(STOP_BUTTON_NAME, OBJPROP_YSIZE, 35);        // 按钮高度（放大）
-        ObjectSet(STOP_BUTTON_NAME, OBJPROP_STATE, false);     // 按钮状态
+        ObjectSet(STOP_BUTTON_NAME, OBJPROP_CORNER, 1);        // 右上角位置
+        ObjectSet(STOP_BUTTON_NAME, OBJPROP_XDISTANCE, 150);   // X距離（向左移動）
+        ObjectSet(STOP_BUTTON_NAME, OBJPROP_YDISTANCE, 30);    // Y距離
+        ObjectSet(STOP_BUTTON_NAME, OBJPROP_XSIZE, 120);       // 按鈕寬度（放大）
+        ObjectSet(STOP_BUTTON_NAME, OBJPROP_YSIZE, 35);        // 按鈕高度（放大）
+        ObjectSet(STOP_BUTTON_NAME, OBJPROP_STATE, false);     // 按鈕初始狀態
     }
     
-    // 更新按钮外观
-    ObjectSet(STOP_BUTTON_NAME, OBJPROP_COLOR, textColor);     // 文字颜色
-    ObjectSet(STOP_BUTTON_NAME, OBJPROP_BGCOLOR, bgColor);     // 背景颜色
+    // 更新按鈕外觀：文字和背景顏色
+    ObjectSet(STOP_BUTTON_NAME, OBJPROP_COLOR, textColor);     // 文字顏色
+    ObjectSet(STOP_BUTTON_NAME, OBJPROP_BGCOLOR, bgColor);     // 背景顏色
     ObjectSetText(STOP_BUTTON_NAME, buttonText, StopButtonFontSize, "Times New Roman");
     
+    // 刷新圖表顯示
     WindowRedraw();
 }
 
 void CheckStopButtonClick()
 {
+    // 檢測按鈕是否被點擊（狀態變為 true）
     if(ObjectGet(STOP_BUTTON_NAME, OBJPROP_STATE) == true)
     {
         if (!isEAStopped)
         {
-            // 停止EA
-            Print("手动停止EA - 正在删除所有挂单...");
+            // 暫停EA：由運行轉為暫停
+            Print("手動暫停EA - 正在刪除所有掛單...");
             
-            // 设置停止状态
+            // 設定暫停狀態
             isEAStopped = true;
             
-            // 删除所有本 EA 的挂单
+            // 刪除所有本 EA 的掛單
             DeleteAllPendingOrders();
             
-            Print("手动停止EA - 所有挂单已删除，交易已停止。");
+            Print("手動暫停EA - 所有掛單已刪除，交易已暫停。");
         }
         else
         {
-            // 继续运行EA
+            // 繼續運行EA：由暫停轉為運行
             if (isCircuitBreakerActive)
             {
-                // 手动终止熔断机制
-                Print("手动终止熔断机制 - 正在继续运行...");
+                // 手動終止熔斷機制
+                Print("手動終止熔斷機制 - 正在繼續運行...");
                 isCircuitBreakerActive = false;
-                pauseEndTime = 0; // 清除熔断时间
+                pauseEndTime = 0; // 清除熔斷時間
             }
             else
             {
-                // 普通手动重启
-                Print("手动重启EA - 正在继续运行...");
+                // 普通手動重啟
+                Print("手動重啟EA - 正在繼續運行...");
             }
             
-            // 重置停止状态
+            // 重置暫停狀態
             isEAStopped = false;
             
-            Print("手动重启EA - EA已继续运行。");
+            Print("手動重啟EA - EA已繼續運行。");
         }
         
-        // 更新按钮外观
+        // 更新按鈕外觀：反映新狀態
         CreateStopButton();
         
-        // 重置按钮状态（避免重复触发）
+        // 重置按鈕狀態（避免重複觸發）
         ObjectSet(STOP_BUTTON_NAME, OBJPROP_STATE, false);
         
+        // 刷新圖表顯示
         WindowRedraw();
     }
 }
