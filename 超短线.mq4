@@ -23,7 +23,6 @@ extern bool   DeletePendingsOnLoss = true;    // 亏损时是否删除所有挂�
 
 // +++++++++++++++ 点差显示设置 +++++++++++++++
 extern string SpreadSetting = "==== Spread Display Setting ====";
-extern bool   ShowSpread = true;              // 是否显示点差
 extern int    SpreadFontSize = 16;            // 点差显示字体大小
 extern color  SpreadColor = Red;              // 点差显示颜色
 
@@ -143,11 +142,16 @@ bool isEAStopped = false;                     // EA手动停止状态
  }
  zong_25_do = (Local_2_do - Local_3_do) / Point() / xt ;
  
- // 初始化点差显示
- if (ShowSpread)
- {
-   ShowSpreadOnChart();
- }
+ // 初始化状态变量 - 确保EA启动时处于正常状态
+ pauseEndTime = 0;
+ lastLossTime = TimeCurrent(); // 初始化为当前时间，避免历史订单触发熍断
+ isCircuitBreakerActive = false;
+ isEAStopped = false;
+ 
+ Print("EA已启动 - 初始状态：正常运行");
+ 
+ // 初始化点差显示（默认开启）
+ ShowSpreadOnChart();
  
  // 初始化手动停止按钮
  if (ShowStopButton)
@@ -161,6 +165,19 @@ bool isEAStopped = false;                     // EA手动停止状态
 
 int start()
 {
+    // ================== 实时显示更新（始终执行） ==================
+    // 无论EA是否停止，都要保持价格和点差的实时显示
+    
+    // 更新点差显示（默认开启，保持持续显示）
+    ShowSpreadOnChart();
+    
+    // 更新停止按钮显示状态（保持持续显示）
+    if (ShowStopButton)
+    {
+        CreateStopButton();
+    }
+    // ================== 实时显示更新结束 ==================
+    
     // ================== 手动停止检查 ==================
     // 检查是否按下了停止按钮
     if (ShowStopButton)
@@ -197,7 +214,15 @@ int start()
     int       i;
     long      remainingSeconds = 0;
 
-    // ================== 新版熔断机制: 检查最近15分钟内的亏损 ==================
+    // =================== 智能熔断机制：亏损后自动暂停交易防止连续亏损 ===================
+    // 功能说明：
+    // 1. 目标：防止连续亏损，通过自动暂停交易冷静期控制风险
+    // 2. 触发条件：检测到本魔术号的交易中有新的亏损订单关闭
+    // 3. 执行时机：每次start()函数调用时检查，确保实时监控
+    // 4. 暂停时长：由PauseDuration_Minutes参数控制（默认1分钟）
+    // 5. 状态同步：与手动停止按钮状态保持一致，统一管理
+    // 6. 可选操作：根据DeletePendingsOnLoss参数决定是否删除所有挂单
+    // 7. 恢复机制：时间到达后自动恢复，或用户手动点击继续按钮
     if (PauseOnLoss_Enabled)
     {
         // --- 1. 检查当前是否已处于暂停状态 ---
@@ -222,7 +247,7 @@ int start()
                         "剩余时间: ", remainingSeconds / 60, " 分 ", remainingSeconds % 60, " 秒\n",
                         "点击绿色按钮可继续运行");
             }
-            return(0); // 处于暂停期，直接退出
+            return(0); // 处于暂停期，直接退出（但显示功能已更新）
         }
         else if (isCircuitBreakerActive)
         {
@@ -269,28 +294,16 @@ int start()
                                 "剩余时间: ", remainingSeconds / 60, " 分 ", remainingSeconds % 60, " 秒\n",
                                 "点击绿色按钮可继续运行");
                     }
-                    return(0);
+                    return(0); // 触发熔断机制，直接退出（但显示功能已更新）
                 }
                 break; // 找到最近的亏损订单后就停止搜索
             }
         }
     }
-    // ================== 新版熔断机制结束 ==================
+    // ================== 智能熔断机制结束 ==================
 
     // 如果EA未被暂停，则执行以下正常的交易逻辑
     Display_Info();
-    
-    // 更新点差显示
-    if (ShowSpread)
-    {
-        ShowSpreadOnChart();
-    }
-    
-    // 更新停止按钮显示状态
-    if (ShowStopButton)
-    {
-        CreateStopButton(); // 确保按钮显示状态正确
-    }
     
     Local_2_in = 0 ;
     Local_3_do = 0.0 ;
@@ -711,7 +724,8 @@ void ShowSpreadOnChart()
 
 void DrawSpreadOnChart(double spread)
 {
-    string s = "点差: " + DoubleToStr(spread, 0) + " 点";
+    // 使用Bid获取当前价格，并将价格显示在点差数字前面
+    string s = DoubleToStr(Bid, Digits) + " | " + DoubleToStr(spread, 0) + " 点";
     
     if(ObjectFind(SPREAD_OBJ_NAME) < 0)
     {
