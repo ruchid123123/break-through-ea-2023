@@ -34,7 +34,6 @@ extern color  StopButtonColor = Red;          // 停止按钮颜色
 extern color  StopButtonBgColor = White;      // 停止按钮背景颜色
 extern color  ContinueButtonColor = Green;    // 继续按钮颜色
 extern color  ContinueButtonBgColor = LightGreen; // 继续按钮背景颜色
-extern bool   ShowStatusMessages = false;         // 是否显示状态提示信息
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -188,10 +187,7 @@ int start()
     // 如果EA已被手动停止，停止所有交易逻辑
     if (isEAStopped)
     {
-        if (ShowStatusMessages)
-        {
-            Comment("⛔ EA 已手动停止\n所有挂单已被删除\n点击绿色按钮可继续运行");
-        }
+        // 默认不显示状态提示信息，保持界面简洁
         return(0);
     }
     // ================== 手动停止检查结束 ==================
@@ -241,12 +237,7 @@ int start()
             }
             
             remainingSeconds = pauseEndTime - TimeCurrent();
-            if (ShowStatusMessages)
-            {
-                Comment("[CIRCUIT BREAKER] 熔断机制激活 - 亏损后自动暂停\n",
-                        "剩余时间: ", remainingSeconds / 60, " 分 ", remainingSeconds % 60, " 秒\n",
-                        "点击绿色按钮可继续运行");
-            }
+            // 默认不显示熔断状态提示信息，保持界面简洁
             return(0); // 处于暂停期，直接退出（但显示功能已更新）
         }
         else if (isCircuitBreakerActive)
@@ -288,12 +279,7 @@ int start()
 
                     // 显示暂停信息并立即退出，开始倒数计时
                     remainingSeconds = pauseEndTime - TimeCurrent();
-                    if (ShowStatusMessages)
-                    {
-                        Comment("[CIRCUIT BREAKER] 熔断机制激活 - 亏损后自动暂停\n",
-                                "剩余时间: ", remainingSeconds / 60, " 分 ", remainingSeconds % 60, " 秒\n",
-                                "点击绿色按钮可继续运行");
-                    }
+                    // 默认不显示熔断状态提示信息，保持界面简洁
                     return(0); // 触发熔断机制，直接退出（但显示功能已更新）
                 }
                 break; // 找到最近的亏损订单后就停止搜索
