@@ -65,6 +65,14 @@ extern color  ContinueButtonBgColor = LightGreen; // 繼續按鈕背景顏色
   int       LotDigits = 0;          // 手數小數位數
   double    lots = 0.0;             // 當前計算出的交易手數
 
+// +++++++++++++++ 狀態持久化變數：解決切換周期自動啟動問題 +++++++++++++++
+// 使用這些變數來在EA重新初始化時保持狀態
+double PERSISTENT_PAUSE_END_TIME = 0;        // 持久化的暫停結束時間
+bool PERSISTENT_CIRCUIT_BREAKER_ACTIVE = false;  // 持久化的熔斷機制狀態
+bool PERSISTENT_EA_STOPPED = false;         // 持久化的EA暫停狀態
+double PERSISTENT_LAST_LOSS_TIME = 0;       // 持久化的最後虧損時間
+bool STATE_INITIALIZED = false;             // 狀態是否已初始化的標記
+
 // +++++++++++++++ 熔斷機制狀態變數：虧損後自動暫停功能 +++++++++++++++
 datetime pauseEndTime = 0;              // 熔斷暫停結束時間戳：記錄暫停結束的時間
 datetime lastLossTime = 0;              // 最後一次虧損時間：避免重複觸發熔斷
@@ -157,13 +165,57 @@ bool isEAStopped = false;                   // EA手動暫停狀態：標示使�
  // 計算點差值（以點數為單位）
  zong_25_do = (Local_2_do - Local_3_do) / Point() / xt ;
  
- // 初始化狀態變數 - 確保EA啟動時處於正常狀態
- pauseEndTime = 0;                    // 清除熔斷暫停時間
- lastLossTime = TimeCurrent();        // 初始化為當前時間，避免歷史訂單觸發熔斷
- isCircuitBreakerActive = false;      // 關閉熔斷機制
- isEAStopped = false;                 // 設定EA為運行狀態
- 
- Print("深度突破EA已啟動 - 初始狀態：正常運行");
+ // 智能狀態恢復邏輯 - 解決切換周期自動啟動問題
+ if (STATE_INITIALIZED)
+ {
+    // 如果狀態已經初始化過，恢復持久化的狀態
+    pauseEndTime = PERSISTENT_PAUSE_END_TIME;
+    isCircuitBreakerActive = PERSISTENT_CIRCUIT_BREAKER_ACTIVE;
+    isEAStopped = PERSISTENT_EA_STOPPED;
+    lastLossTime = PERSISTENT_LAST_LOSS_TIME;
+    
+    Print("狀態恢復完成 - 切換周期後保持原有狀態");
+    if (isEAStopped)
+    {
+        if (isCircuitBreakerActive)
+        {
+            long remainingSeconds = pauseEndTime - TimeCurrent();
+            if (remainingSeconds > 0)
+            {
+                Print("恢復熔斷狀態 - 剩餘時間: ", remainingSeconds, " 秒");
+            }
+            else
+            {
+                Print("恢復熔斷狀態 - 時間已到，等待用戶操作");
+            }
+        }
+        else
+        {
+            Print("恢復手動暫停狀態");
+        }
+    }
+    else
+    {
+        Print("恢復正常運行狀態");
+    }
+ }
+ else
+ {
+    // 首次初始化，設定為正常狀態
+    pauseEndTime = 0;
+    lastLossTime = TimeCurrent();
+    isCircuitBreakerActive = false;
+    isEAStopped = false;
+    
+    // 保存到持久化變量
+    PERSISTENT_PAUSE_END_TIME = pauseEndTime;
+    PERSISTENT_CIRCUIT_BREAKER_ACTIVE = isCircuitBreakerActive;
+    PERSISTENT_EA_STOPPED = isEAStopped;
+    PERSISTENT_LAST_LOSS_TIME = lastLossTime;
+    STATE_INITIALIZED = true;
+    
+    Print("深度突破EA首次啟動 - 初始狀態：正常運行");
+ }
  
  // 初始化市場信息顯示（價格+點差，預設開啟）
  ShowSpreadOnChart();
@@ -236,11 +288,12 @@ int start()
                 DeleteAllPendingOrders();
             }
             
-            // 设置熔断机制激活状态，与手动停止同步
+            // 設置熔斷機制激活狀態，與手動停止同步
             if (!isCircuitBreakerActive)
             {
                 isCircuitBreakerActive = true;
-                isEAStopped = true; // 与手动停止按钮同步
+                isEAStopped = true; // 與手動停止按鈕同步
+                SyncPersistentState(); // 同步持久化狀態
             }
             
             remainingSeconds = pauseEndTime - TimeCurrent();
@@ -249,10 +302,11 @@ int start()
         }
         else if (isCircuitBreakerActive)
         {
-            // 熔断时间到了，自动恢复运行
+            // 熔斷時間到了，自動恢復運行
             isCircuitBreakerActive = false;
-            isEAStopped = false; // 与手动停止按钮同步
-            Print("熔断机制暂停时间结束，自动恢复交易");
+            isEAStopped = false; // 與手動停止按鈕同步
+            SyncPersistentState(); // 同步持久化狀態
+            Print("熔斷機制暫停時間結束，自動恢復交易");
         }
 
         // --- 2. 如果未处于暂停状态，则检查是否有新的亏损订单 ---
@@ -269,15 +323,18 @@ int start()
                     Print("New loss detected on ticket #", OrderTicket(), " at ", TimeToString(OrderCloseTime()));
                     Print("Pausing EA for ", PauseDuration_Minutes, " minutes from now.");
 
-                    // 记录这次亏损的时间，避免重复触发
+                    // 記錄這次虧損的時間，避免重複觸發
                     lastLossTime = OrderCloseTime();
                     
-                    // 设置一个从“现在”开始的暂停结束时间
+                    // 設置一個從“現在”開始的暫停結束時間
                     pauseEndTime = TimeCurrent() + PauseDuration_Minutes * 60;
                     
-                    // 激活熔断机制，与手动停止按钮同步
+                    // 激活熔斷機制，與手動停止按鈕同步
                     isCircuitBreakerActive = true;
                     isEAStopped = true;
+                    
+                    // 同步持久化狀態，確保切換周期後保持暫停
+                    SyncPersistentState();
 
                     if (DeletePendingsOnLoss)
                     {
@@ -542,6 +599,17 @@ int start()
 }
 //start <<==--------   --------
 
+// +++++++++++++++ 狀態持久化同步函數：確保狀態變化時的一致性 +++++++++++++++
+void SyncPersistentState()
+{
+    // 將當前狀態同步到持久化變量，確保在EA重新初始化時能够恢復
+    PERSISTENT_PAUSE_END_TIME = pauseEndTime;
+    PERSISTENT_CIRCUIT_BREAKER_ACTIVE = isCircuitBreakerActive;
+    PERSISTENT_EA_STOPPED = isEAStopped;
+    PERSISTENT_LAST_LOSS_TIME = lastLossTime;
+    STATE_INITIALIZED = true;
+}
+
 // +++++++++++++++ 熔斷機制輔助函數：刪除所有掛單避免意外成交 +++++++++++++++
 void DeleteAllPendingOrders()
 {
@@ -580,6 +648,10 @@ int deinit()
  
  // 清理所有其他物件：確保無殘留
  ObjectsDeleteAll(-1,-1);
+ 
+ // 最後同步一次狀態，確保資料一致性
+ SyncPersistentState();
+ 
  return(0);
 }
 //deinit <<==--------   --------
@@ -829,6 +901,9 @@ void CheckStopButtonClick()
             // 刪除所有本 EA 的掛單
             DeleteAllPendingOrders();
             
+            // 同步持久化狀態，確保切換周期後保持暫停
+            SyncPersistentState();
+            
             Print("手動暫停EA - 所有掛單已刪除，交易已暫停。");
         }
         else
@@ -849,6 +924,9 @@ void CheckStopButtonClick()
             
             // 重置暫停狀態
             isEAStopped = false;
+            
+            // 同步持久化狀態，確保切換周期後保持運行
+            SyncPersistentState();
             
             Print("手動重啟EA - EA已繼續運行。");
         }
