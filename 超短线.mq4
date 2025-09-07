@@ -58,7 +58,7 @@ extern color  ContinueButtonBgColor = LightGreen; // 繼續按鈕背景顏色
   int       zong_20_in = 10;        // 訂單滑點容忍值（點數）
   int       zong_21_in = 0;         // 上次Buy Stop訂單時間戳
   int       zong_22_in = 0;         // 上次Sell Stop訂單時間戳
-  int       zong_23_in = 1;         // 掛單頻率控制（秒），預設為1秒
+  int       zong_23_in = 3;         // 掛單頻率控制（秒），預設為1秒
   int       zong_24_in = 30;        // 價格變動闾值（點數），超過此值才移動掛單
   double    zong_25_do = 0.0;       // 計算出的點差值
   double    zong_26_do = 0.0;       // 手數步長（MODE_LOTSTEP）
@@ -306,7 +306,11 @@ int start()
             isCircuitBreakerActive = false;
             isEAStopped = false; // 與手動停止按鈕同步
             SyncPersistentState(); // 同步持久化狀態
-            Print("熔斷機制暫停時間結束，自動恢復交易");
+            
+            // 立即更新按鈕顯示狀態，確保用戶能看到EA已自動恢復
+            CreateStopButton();
+            
+            Print("熔斷機制暫停時間結束，EA已自動恢復交易");
         }
 
         // --- 2. 如果未处于暂停状态，则检查是否有新的亏损订单 ---
@@ -840,16 +844,18 @@ void CreateStopButton()
     {
         if (isCircuitBreakerActive)
         {
-            // 熔斷機制激活狀態：顯示倒數計時
+            // 熔斷機制激活狀態：顯示倒數計時或繼續按鈕
             long remainingSeconds = pauseEndTime - TimeCurrent();
             if (remainingSeconds > 0)
             {
+                // 仍在熔斷期間，顯示倒數計時
                 buttonText = "熔斷" + IntegerToString(remainingSeconds / 60) + ":" + IntegerToString(remainingSeconds % 60, 2, '0');
                 textColor = Orange; // 熔斷狀態用橙色
                 bgColor = Yellow;   // 背景用黃色
             }
             else
             {
+                // 熔斷時間已到，顯示繼續按鈕（或自動恢復）
                 buttonText = "繼續運行";
                 textColor = ContinueButtonColor;
                 bgColor = ContinueButtonBgColor;
