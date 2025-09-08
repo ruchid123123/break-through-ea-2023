@@ -833,6 +833,17 @@ void CreateStopButton()
     string buttonText;  // 按鈕顯示文字
     color textColor, bgColor;  // 按鈕文字和背景顏色
     
+    // **關鍵修復**：在創建按鈕時也檢查熔斷時間是否到期
+    // 確保按鈕狀態與實際EA狀態保持同步
+    if (isCircuitBreakerActive && TimeCurrent() >= pauseEndTime)
+    {
+        // 熔斷時間已到，自動重置狀態（與start()函數邏輯保持一致）
+        isCircuitBreakerActive = false;
+        isEAStopped = false;
+        SyncPersistentState();
+        Print("按鈕更新時檢測到熔斷時間已到，自動重置狀態");
+    }
+    
     if (!isEAStopped)
     {
         // EA正常運行狀態：顯示暫停按鈕
