@@ -4,6 +4,7 @@ enum Option1      {Expert = 10,Moderate = 20,Safe = 30  };
 //------------------
 extern string 注释 = "专做数据行情超短线";
 extern string Configuration="==== Setting ===="  ;
+extern bool   StartInPauseMode = true  ;// 啟動暫停模式：true=啟動時默認暫停 false=啟動時默認運行
 extern int   magicnumber=333  ;// 魔術號：用於識別本EA訂單，與熔斷機制相關
 extern bool AutoLot=true  ;// 自動手數計算：true=根據帳戶餘額自動計算，false=使用固定手數
 extern  Option1  AutoLotMode=20  ;// 風險等級：10=激進 20=穩健 30=保守（影響自動手數計算）
@@ -201,11 +202,22 @@ bool isEAStopped = false;                   // EA手動暫停狀態：標示使�
  }
  else
  {
-    // 首次初始化，設定為正常狀態
+    // 首次初始化，根據StartInPauseMode參數決定啟動狀態
     pauseEndTime = 0;
     lastLossTime = TimeCurrent();
     isCircuitBreakerActive = false;
-    isEAStopped = false;
+    
+    // 根據參數設定初始狀態
+    if (StartInPauseMode)
+    {
+        isEAStopped = true;  // 啟動時處於暫停狀態
+        Print("深度突破EA啟動 - 默認暫停狀態（需手動點擊繼續運行按鈕）");
+    }
+    else
+    {
+        isEAStopped = false; // 啟動時處於運行狀態
+        Print("深度突破EA啟動 - 默認運行狀態");
+    }
     
     // 保存到持久化變量
     PERSISTENT_PAUSE_END_TIME = pauseEndTime;
@@ -213,8 +225,6 @@ bool isEAStopped = false;                   // EA手動暫停狀態：標示使�
     PERSISTENT_EA_STOPPED = isEAStopped;
     PERSISTENT_LAST_LOSS_TIME = lastLossTime;
     STATE_INITIALIZED = true;
-    
-    Print("深度突破EA首次啟動 - 初始狀態：正常運行");
  }
  
  // 初始化市場信息顯示（價格+點差，預設開啟）
