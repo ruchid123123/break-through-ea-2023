@@ -81,6 +81,7 @@ bool isCircuitBreakerActive = false;    // 熔斷機制激活狀態：標示是�
 
 // +++++++++++++++ 市場信息顯示控制：價格和點差統一顯示 +++++++++++++++
 #define SPREAD_OBJ_NAME "PriceSpreadDisplayObj"  // 市場信息顯示物件名稱
+#define DATETIME_OBJ_NAME "DateTimeDisplayObj"  // 日期時間顯示物件名稱
 
 // +++++++++++++++ 手動控制按鈕狀態變數：界面交互控制 +++++++++++++++
 #define STOP_BUTTON_NAME "ManualStopButton"     // 手動停止按鈕物件名稱
@@ -230,6 +231,9 @@ bool isEAStopped = false;                   // EA手動暫停狀態：標示使�
  // 初始化市場信息顯示（價格+點差，預設開啟）
  ShowSpreadOnChart();
  
+ // 初始化日期時間顯示
+ ShowDateTimeOnChart();
+ 
  // 初始化手動停止按鈕
  CreateStopButton();
  
@@ -244,6 +248,9 @@ int start()
     
     // 更新市場信息顯示（價格+點差，預設開啟，保持持續顯示）
     ShowSpreadOnChart();
+    
+    // 更新日期時間顯示
+    ShowDateTimeOnChart();
     
     // 更新停止按鈕顯示狀態（保持持續顯示）
     CreateStopButton();
@@ -657,6 +664,9 @@ int deinit()
  // 清理界面元素：刪除市場信息顯示物件（價格+點差）
  ObjectDelete(SPREAD_OBJ_NAME);
  
+ // 清理日期時間顯示物件
+ ObjectDelete(DATETIME_OBJ_NAME);
+ 
  // 清理界面元素：刪除手動暫停按鈕物件
  ObjectDelete(STOP_BUTTON_NAME);
  
@@ -970,3 +980,23 @@ void CheckStopButtonClick()
 }
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+// +++++++++++++++ 日期時間顯示功能 +++++++++++++++
+void ShowDateTimeOnChart()
+{
+    // 實時同步顯示，每個tick都更新
+    string dateTimeStr = IntegerToString(Year()) + "." + 
+                         IntegerToString(Month()) + "." + 
+                         IntegerToString(Day()) + "-" + 
+                         TimeToStr(TimeCurrent(), TIME_SECONDS);
+    
+    if(ObjectFind(DATETIME_OBJ_NAME) < 0)
+    {
+        ObjectCreate(DATETIME_OBJ_NAME, OBJ_LABEL, 0, 0, 0);
+        ObjectSet(DATETIME_OBJ_NAME, OBJPROP_CORNER, 1);        // 右上角位置
+        ObjectSet(DATETIME_OBJ_NAME, OBJPROP_YDISTANCE, 100);   // Y距離（在點差下方）
+        ObjectSet(DATETIME_OBJ_NAME, OBJPROP_XDISTANCE, 50);    // X距離（與點差對齊）
+    }
+    
+    ObjectSetText(DATETIME_OBJ_NAME, dateTimeStr, SpreadFontSize, "Times New Roman", Yellow);
+}
