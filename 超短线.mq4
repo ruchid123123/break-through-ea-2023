@@ -13,9 +13,10 @@ extern string OrderSetting="=== Leave as Default ===="  ;
 extern int   stoploss=200  ;// 止損距離（點數）：已優化為黃金分割比例
 extern int   takeprofit=1300  ;// 止盈距離（點數）：目標盈利點數
 extern int   step=200  ;// 掛單距離（點數）：掛單距離當前價格的點數
-extern string Config="==== Time Filter ===="  ;
-extern int   StartHour=1  ;// 開始交易時間（小時）：0-23，建議設定在重要數據發布前
-extern int   StopHour=23  ;// 停止交易時間（小時）：0-23，建議設定在重要數據發布後
+// 已移除時間段過濾功能：使用手動暫停按鈕和熔斷機制更精確地控制交易時機
+// extern string Config="==== Time Filter ===="  ;
+// extern int   StartHour=1  ;// 開始交易時間（小時）：0-23，建議設定在重要數據發布前
+// extern int   StopHour=23  ;// 停止交易時間（小時）：0-23，建議設定在重要數據發布後
 
 // +++++++++++++++ 熔斷機制設置：虧損後自動暫停交易防止連續虧損 +++++++++++++++
 extern string LossSetting = "==== Stop on Loss Setting =====";
@@ -765,17 +766,11 @@ int deinit()
  }
 //LABEL <<==--------   --------
 
-// *** 時間過濾函數：檢查當前時間是否在交易時間範圍內 ***
+// *** 已移除時間過濾功能：現在可以24小時運行，使用手動暫停按鈕控制 ***
 bool dTime()
 {
- bool      ans = false;  // 返回值：是否允許交易
-//----- -----
- // 檢查當前小時是否在設定的交易時間範圍內
- if ( Hour() >= StartHour && Hour() <  StopHour )
- {
-   ans = true ;  // 在交易時間內，允許交易
- }
- return(ans);  // 返回檢查結果
+ // 更精確的交易時機控制已由手動暫停按鈕和熔斷機制提供
+ return(true);  // 始終允許交易，由手動控制時機
 }
 //dTime <<==--------   --------
 
