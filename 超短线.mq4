@@ -40,14 +40,12 @@ extern color  ContinueButtonBgColor = LightGreen; // 繼續按鈕背景顏色
 
 // +++++++++++++++ 定時控制功能設置：自動化時間管理 +++++++++++++++
 extern string TimerSetting = "==== Auto Timer Control Setting ====";
-extern bool   EnableAutoTimer = false;        // 啟用定時控制功能：預設關閉，需手動啟用
 extern bool   UseLocalTime = true;            // 使用本地時間：true=本地北京時間，false=從服務器獲取
 extern int    BeijingTimeOffset = 8;          // 北京時間偏移：相對於GMT的小時偏移
 extern int    StartHour = 20;                 // 啟動時間（小時）：預設20點（20:29）
 extern int    StartMinute = 29;               // 啟動時間（分鐘）：預設29分
 extern int    StopHour = 20;                  // 停止時間（小時）：預設20點（20:34）
 extern int    StopMinute = 34;                // 停止時間（分鐘）：預設34分
-extern int    DelaySeconds = 5;               // 有單子時的延遲檢測時間（秒）
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -102,8 +100,8 @@ bool isEAStopped = false;                   // EA手動暫停狀態：標示使�
 
 // +++++++++++++++ 定時控制功能狀態變數：自動化時間管理 +++++++++++++++
 bool isAutoTimerActive = false;             // 定時控制機制是否激活
-datetime nextCheckTime = 0;                 // 下次檢測時間（用於延遲檢測）
-bool waitingForNoOrders = false;            // 是否正在等待沒有單子的狀態
+// datetime nextCheckTime = 0;                 // 已移除：無需延遲檢測
+// bool waitingForNoOrders = false;            // 已移除：無需等待狀態
 datetime lastStartTrigger = 0;              // 最後一次啟動觸發時間（避免重複觸發）
 datetime lastStopTrigger = 0;               // 最後一次停止觸發時間（避免重複觸發）
 bool timerCycleCompleted = false;           // 定時周期是否完成（一次性使用權限）
@@ -671,7 +669,7 @@ void OnTimer()
 // +++++++++++++++ 狀態持久化同步函數：確保狀態變化時的一致性 +++++++++++++++
 void SyncPersistentState()
 {
-    // 將當前狀態同步到持久化變量，確保在EA重新初始化時能够恢復
+    // 將當前狀態同步到持久化變數，確保在EA重新初始化時能夠恢復
     PERSISTENT_PAUSE_END_TIME = pauseEndTime;
     PERSISTENT_CIRCUIT_BREAKER_ACTIVE = isCircuitBreakerActive;
     PERSISTENT_EA_STOPPED = isEAStopped;
@@ -1066,36 +1064,26 @@ void CreateTimerButton()
     }
     else
     {
-        if (waitingForNoOrders)
+        // 定時功能激活狀態：顯示停用按鈕和倒計時
+        string countdownText = GetNextEventCountdown();
+        if (countdownText == "周期完成")
         {
-            // 正在等待沒有單子的狀態：顯示等待狀態
-            buttonText = "等待無單";
-            textColor = Orange;
-            bgColor = Yellow;
+            // 周期完成，顯示完成狀態
+            buttonText = "完成周期";
+            textColor = Gray;
+            bgColor = LightGray;
+        }
+        else if (countdownText != "")
+        {
+            buttonText = "停用定時\n" + countdownText;
+            textColor = Red;
+            bgColor = Pink;
         }
         else
         {
-            // 定時功能激活狀態：顯示停用按鈕和倒計時
-            string countdownText = GetNextEventCountdown();
-            if (countdownText == "周期完成")
-            {
-                // 周期完成，顯示完成狀態
-                buttonText = "完成周期";
-                textColor = Gray;
-                bgColor = LightGray;
-            }
-            else if (countdownText != "")
-            {
-                buttonText = "停用定時\n" + countdownText;
-                textColor = Red;
-                bgColor = Pink;
-            }
-            else
-            {
-                buttonText = "停用定時";
-                textColor = Red;
-                bgColor = Pink;
-            }
+            buttonText = "停用定時";
+            textColor = Red;
+            bgColor = Pink;
         }
     }
     
@@ -1267,8 +1255,8 @@ void CheckTimerButtonClick()
         {
             // 啟用定時控制機制
             isAutoTimerActive = true;
-            waitingForNoOrders = false;
-            nextCheckTime = 0;
+            // waitingForNoOrders = false;  // 已移除：無需等待狀態
+            // nextCheckTime = 0;           // 已移除：無需延遲檢測
             lastStartTrigger = 0;
             lastStopTrigger = 0;
             
@@ -1291,8 +1279,8 @@ void CheckTimerButtonClick()
             timerCycleCompleted = false;
             startTriggeredToday = false;
             stopTriggeredToday = false;
-            waitingForNoOrders = false;
-            nextCheckTime = 0;
+            // waitingForNoOrders = false;  // 已移除：無需等待狀態
+            // nextCheckTime = 0;           // 已移除：無需延遲檢測
             lastStartTrigger = 0;
             lastStopTrigger = 0;
             
@@ -1306,8 +1294,8 @@ void CheckTimerButtonClick()
         {
             // 停用定時控制機制
             isAutoTimerActive = false;
-            waitingForNoOrders = false;
-            nextCheckTime = 0;
+            // waitingForNoOrders = false;  // 已移除：無需等待狀態
+            // nextCheckTime = 0;           // 已移除：無需延遲檢測
             timerCycleCompleted = false;
             startTriggeredToday = false;
             stopTriggeredToday = false;
@@ -1421,72 +1409,21 @@ void ProcessAutoTimer()
             Print("定時控制 - 北京時間 ", currentHour, ":", currentMinute, 
                   " (", GetBeijingTimeString(), ") - 觸發停止檢查");
             
-            // 檢查是否有單子
-            if (!HasActiveOrders())
-            {
-                // 沒有單子，直接暫停
-                if (!isEAStopped)
-                {
-                    isEAStopped = true;
-                    SyncPersistentState();
-                    
-                    Print("定時控制 - 北京時間 ", currentHour, ":", currentMinute, 
-                          " 沒有單子，自動暫停EA");
-                    
-                    // 立即更新按鈕顯示狀態
-                    CreateStopButton();
-                }
-                
-                // 結束等待模式，完成周期
-                waitingForNoOrders = false;
-                nextCheckTime = 0;
-                CompleteTimerCycle();
-            }
-            else
-            {
-                // 有單子，進入等待模式
-                waitingForNoOrders = true;
-                nextCheckTime = currentTime + DelaySeconds;  // 設定5秒後再次檢查
-                
-                Print("定時控制 - 北京時間 ", currentHour, ":", currentMinute, 
-                      " 有單子存在，延遲 ", DelaySeconds, " 秒後再次檢查");
-                
-                // 更新按鈕顯示為等待狀態
-                CreateTimerButton();
-            }
-        }
-    }
-    
-    // 如果正在等待沒有單子的狀態，檢查是否到了下次檢查時間
-    if (waitingForNoOrders && currentTime >= nextCheckTime)
-    {
-        if (!HasActiveOrders())
-        {
-            // 沒有單子了，暫停EA
+            // 直接暫停 EA，不再檢查單子狀態（因為熔斷機制已經處理這個情況）
             if (!isEAStopped)
             {
                 isEAStopped = true;
                 SyncPersistentState();
                 
-                Print("定時控制 - 延遲檢測到沒有單子，自動暫停EA (", 
-                      GetBeijingTimeString(), ")");
+                Print("定時控制 - 北京時間 ", currentHour, ":", currentMinute, 
+                      " 自動暫停 EA（一次性開啟權限）");
                 
                 // 立即更新按鈕顯示狀態
                 CreateStopButton();
             }
             
-            // 結束等待模式，完成周期
-            waitingForNoOrders = false;
-            nextCheckTime = 0;
+            // 完成周期
             CompleteTimerCycle();
-        }
-        else
-        {
-            // 還有單子，繼續等待
-            nextCheckTime = currentTime + DelaySeconds;  // 再等待DelaySeconds秒
-            
-            Print("定時控制 - 仍有單子存在，繼續等待 ", DelaySeconds, 
-                  " 秒 (", GetBeijingTimeString(), ")");
         }
     }
 }
