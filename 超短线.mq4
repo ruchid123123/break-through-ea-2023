@@ -1278,8 +1278,8 @@ void CheckTimerButtonClick()
             stopTriggeredToday = false;
             
             // 記錄當前日期
-            datetime beijingTime = GetBeijingTime();
-            currentDay = TimeDay(beijingTime);
+            datetime tempBeijingTime = GetBeijingTime();
+            currentDay = TimeDay(tempBeijingTime);
             
             Print("定時控制機制已啟用 - 將在北京時間 ", StartHour, ":", StartMinute, " 自動啟動，", StopHour, ":", StopMinute, " 自動停止");
             Print("時間獲取方式：", (UseLocalTime ? "本地時間" : "服務器時間+偏移"), " - 當前: ", GetBeijingTimeString());
@@ -1297,8 +1297,8 @@ void CheckTimerButtonClick()
             lastStopTrigger = 0;
             
             // 更新當前日期
-            datetime beijingTime = GetBeijingTime();
-            currentDay = TimeDay(beijingTime);
+            datetime tempBeijingTime2 = GetBeijingTime();
+            currentDay = TimeDay(tempBeijingTime2);
             
             Print("重新啟用定時控制機制 - 新的一次性使用權限");
         }
@@ -1356,8 +1356,8 @@ void ProcessAutoTimer()
     GetBeijingHourMinute(currentHour, currentMinute);
     
     datetime currentTime = TimeCurrent();  // 用於防重複觸發的時間標記
-    datetime beijingTime = GetBeijingTime();
-    int todayDay = TimeDay(beijingTime);
+    datetime tempBeijingTime3 = GetBeijingTime();
+    int todayDay = TimeDay(tempBeijingTime3);
     
     // 檢查日期是否變化（重置每日觸發狀態）
     if (currentDay != 0 && todayDay != currentDay)
