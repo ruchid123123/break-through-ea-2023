@@ -38,14 +38,13 @@ extern color  StopButtonBgColor = White;      // 暫停按鈕背景顏色
 extern color  ContinueButtonColor = Green;    // 繼續按鈕文字顏色
 extern color  ContinueButtonBgColor = LightGreen; // 繼續按鈕背景顏色
 
-// +++++++++++++++ 定時控制功能設置：自動化時間管理 +++++++++++++++
-extern string TimerSetting = "==== Auto Timer Control Setting ====";
-extern bool   UseLocalTime = true;            // 使用本地時間：true=本地北京時間，false=從服務器獲取
-extern int    BeijingTimeOffset = 8;          // 北京時間偏移：相對於GMT的小時偏移
-extern int    StartHour = 20;                 // 啟動時間（小時）：預設20點（20:29）
-extern int    StartMinute = 29;               // 啟動時間（分鐘）：預設29分
-extern int    StopHour = 20;                  // 停止時間（小時）：預設20點（20:34）
-extern int    StopMinute = 34;                // 停止時間（分鐘）：預設34分
+// +++++++++++++++ 一鍵平倉按鈕設置：快速平倉控制 +++++++++++++++
+extern string CloseAllSetting = "==== Close All Button Setting ====";
+extern int    CloseAllButtonFontSize = 14;    // 平倉按鈕字體大小
+extern color  CloseAllButtonColor = White;    // 平倉按鈕文字顏色
+extern color  CloseAllButtonBgColor = Red;    // 平倉按鈕背景顏色
+
+
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -95,19 +94,11 @@ bool isCircuitBreakerActive = false;    // 熔斷機制激活狀態：標示是�
 
 // +++++++++++++++ 手動控制按鈕狀態變數：界面交互控制 +++++++++++++++
 #define STOP_BUTTON_NAME "ManualStopButton"     // 手動停止按鈕物件名稱
-#define TIMER_BUTTON_NAME "AutoTimerButton"    // 定時控制按鈕物件名稱
+#define CLOSE_ALL_BUTTON_NAME "CloseAllButton"   // 一鍵平倉按鈕物件名稱
+
 bool isEAStopped = false;                   // EA手動暫停狀態：標示使用者是否手動暫停EA
 
-// +++++++++++++++ 定時控制功能狀態變數：自動化時間管理 +++++++++++++++
-bool isAutoTimerActive = false;             // 定時控制機制是否激活
-// datetime nextCheckTime = 0;                 // 已移除：無需延遲檢測
-// bool waitingForNoOrders = false;            // 已移除：無需等待狀態
-datetime lastStartTrigger = 0;              // 最後一次啟動觸發時間（避免重複觸發）
-datetime lastStopTrigger = 0;               // 最後一次停止觸發時間（避免重複觸發）
-bool timerCycleCompleted = false;           // 定時周期是否完成（一次性使用權限）
-bool startTriggeredToday = false;           // 今天是否已經觸發過啟動
-bool stopTriggeredToday = false;            // 今天是否已經觸發過停止
-int currentDay = 0;                         // 當前日期（用於跟蹤日期變化）
+
 // ++++++++++++++++++++++++++++++++++++++++++++++++
 
  int init()
@@ -242,6 +233,8 @@ int currentDay = 0;                         // 當前日期（用於跟蹤日期
         Print("深度突破EA啟動 - 默認運行狀態");
     }
     
+
+    
     // 保存到持久化變量
     PERSISTENT_PAUSE_END_TIME = pauseEndTime;
     PERSISTENT_CIRCUIT_BREAKER_ACTIVE = isCircuitBreakerActive;
@@ -262,8 +255,10 @@ int currentDay = 0;                         // 當前日期（用於跟蹤日期
  // 初始化手動停止按鈕
  CreateStopButton();
  
- // 初始化定時控制按鈕
- CreateTimerButton();
+ // 初始化一鍵平倉按鈕
+ CreateCloseAllButton();
+ 
+
  
  return(0);
  }
@@ -280,16 +275,20 @@ int start()
     // 更新停止按鈕顯示狀態（保持持續顯示）
     CreateStopButton();
     
-    // 更新定時控制按鈕顯示狀態（保持持續顯示）
-    CreateTimerButton();
+    // 更新一鍵平倉按鈕顯示狀態（保持持續顯示）
+    CreateCloseAllButton();
+    
+
     // ================== 即時顯示更新結束 ==================
     
     // ================== 手動暫停檢查 ==================
     // 檢查是否按下了暫停按鈕
     CheckStopButtonClick();
     
-    // 檢查是否按下了定時控制按鈕
-    CheckTimerButtonClick();
+    // 檢查是否按下了一鍵平倉按鈕
+    CheckCloseAllButtonClick();
+    
+
     
     // 如果EA已被手動暫停，停止所有交易邏輯
     if (isEAStopped)
@@ -298,13 +297,7 @@ int start()
         return(0);
     }
     
-    // ================== 定時控制功能檢查 ==================
-    // 如果啟用了定時控制機制，執行定時檢查
-    if (isAutoTimerActive)
-    {
-        ProcessAutoTimer();
-    }
-    // ================== 定時控制功能檢查結束 ==================
+
     // ================== 手動暫停檢查結束 ==================
     
     int       Local_2_in;
@@ -716,8 +709,10 @@ int deinit()
  // 清理界面元素：刪除手動暫停按鈕物件
  ObjectDelete(STOP_BUTTON_NAME);
  
- // 清理界面元素：刪除定時控制按鈕物件
- ObjectDelete(TIMER_BUTTON_NAME);
+ // 清理界面元素：刪除一鍵平倉按鈕物件
+ ObjectDelete(CLOSE_ALL_BUTTON_NAME);
+ 
+
  
  // 停止定時器
  EventKillTimer();
@@ -1027,6 +1022,114 @@ void CheckStopButtonClick()
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+// +++++++++++++++ 一鍵平倉按鈕功能：快速平倉所有交易 +++++++++++++++
+void CreateCloseAllButton()
+{
+    if(ObjectFind(CLOSE_ALL_BUTTON_NAME) < 0)
+    {
+        // 初次創建一鍵平倉按鈕
+        ObjectCreate(CLOSE_ALL_BUTTON_NAME, OBJ_BUTTON, 0, 0, 0);
+        ObjectSet(CLOSE_ALL_BUTTON_NAME, OBJPROP_CORNER, 1);        // 右上角位置
+        ObjectSet(CLOSE_ALL_BUTTON_NAME, OBJPROP_XDISTANCE, 290);   // X距離（在暫停按鈕左側）
+        ObjectSet(CLOSE_ALL_BUTTON_NAME, OBJPROP_YDISTANCE, 30);    // Y距離
+        ObjectSet(CLOSE_ALL_BUTTON_NAME, OBJPROP_XSIZE, 120);       // 按鈕寬度
+        ObjectSet(CLOSE_ALL_BUTTON_NAME, OBJPROP_YSIZE, 35);        // 按鈕高度
+        ObjectSet(CLOSE_ALL_BUTTON_NAME, OBJPROP_STATE, false);     // 按鈕初始狀態
+    }
+    
+    // 更新按鈕外觀：文字和背景顏色
+    ObjectSet(CLOSE_ALL_BUTTON_NAME, OBJPROP_COLOR, CloseAllButtonColor);     // 文字顏色
+    ObjectSet(CLOSE_ALL_BUTTON_NAME, OBJPROP_BGCOLOR, CloseAllButtonBgColor); // 背景顏色
+    ObjectSetText(CLOSE_ALL_BUTTON_NAME, "一鍵平倉", CloseAllButtonFontSize, "Times New Roman");
+    
+    // 刷新圖表顯示
+    WindowRedraw();
+}
+
+void CheckCloseAllButtonClick()
+{
+    // 檢測按鈕是否被點擊（狀態變為 true）
+    if(ObjectGet(CLOSE_ALL_BUTTON_NAME, OBJPROP_STATE) == true)
+    {
+        // 執行一鍵平倉操作
+        CloseAllOrders();
+        
+        // 重置按鈕狀態（避免重複觸發）
+        ObjectSet(CLOSE_ALL_BUTTON_NAME, OBJPROP_STATE, false);
+        
+        // 刷新圖表顯示
+        WindowRedraw();
+    }
+}
+
+void CloseAllOrders()
+{
+    int totalClosed = 0;
+    int totalFailed = 0;
+    
+    Print("開始執行一鍵平倉 - 正在關閉所有本 EA 的已成交訂單...");
+    
+    // 關閉所有已成交的交易訂單（Buy 和 Sell），不處理掛單
+    for (int i = OrdersTotal() - 1; i >= 0; i--)
+    {
+        if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
+        {
+            // 確保是本 EA 的交易
+            if (OrderSymbol() == Symbol() && OrderMagicNumber() == magicnumber)
+            {
+                if (OrderType() == OP_BUY)
+                {
+                    // 關閉做多訂單
+                    if (OrderClose(OrderTicket(), OrderLots(), Bid, zong_20_in, clrNONE))
+                    {
+                        totalClosed++;
+                        Print("成功關閉做多訂單 #", OrderTicket());
+                    }
+                    else
+                    {
+                        totalFailed++;
+                        Print("關閉做多訂單失敗 #", OrderTicket(), " 錯誤: ", GetLastError());
+                    }
+                }
+                else if (OrderType() == OP_SELL)
+                {
+                    // 關閉做空訂單
+                    if (OrderClose(OrderTicket(), OrderLots(), Ask, zong_20_in, clrNONE))
+                    {
+                        totalClosed++;
+                        Print("成功關閉做空訂單 #", OrderTicket());
+                    }
+                    else
+                    {
+                        totalFailed++;
+                        Print("關閉做空訂單失敗 #", OrderTicket(), " 錯誤: ", GetLastError());
+                    }
+                }
+                // 已移除掛單刪除逻輯，只處理已成交訂單
+            }
+        }
+    }
+    
+    // 輸出結果統計
+    Print("一鍵平倉完成 - 成功關閉: ", totalClosed, " 筆已成交訂單，失敗: ", totalFailed, " 筆");
+    
+    if (totalClosed > 0)
+    {
+        Print("已成功關閉 ", totalClosed, " 筆已成交訂單（不包含掛單）");
+    }
+    
+    if (totalFailed > 0)
+    {
+        Print("警告：有 ", totalFailed, " 筆訂單關閉失敗，請手動檢查");
+    }
+    
+    if (totalClosed == 0 && totalFailed == 0)
+    {
+        Print("沒有找到需要關閉的已成交訂單");
+    }
+}
+// +++++++++++++++ 一鍵平倉功能結束 +++++++++++++++
+
 // +++++++++++++++ 日期時間顯示功能 +++++++++++++++
 void ShowDateTimeOnChart()
 {
@@ -1047,459 +1150,3 @@ void ShowDateTimeOnChart()
     ObjectSetText(DATETIME_OBJ_NAME, dateTimeStr, SpreadFontSize, "Times New Roman", Yellow);
 }
 
-// +++++++++++++++ 定時控制功能：自動化時間管理系統 +++++++++++++++
-
-// 創建定時控制按鈕
-void CreateTimerButton()
-{
-    string buttonText;  // 按鈕顯示文字
-    color textColor, bgColor;  // 按鈕文字和背景顏色
-    
-    if (!isAutoTimerActive)
-    {
-        // 定時功能未激活狀態：顯示啟用按鈕
-        buttonText = "啟用定時";
-        textColor = Blue;
-        bgColor = LightBlue;
-    }
-    else
-    {
-        // 定時功能激活狀態：顯示停用按鈕和倒計時
-        string countdownText = GetNextEventCountdown();
-        if (countdownText == "周期完成")
-        {
-            // 周期完成，顯示完成狀態
-            buttonText = "完成周期";
-            textColor = Gray;
-            bgColor = LightGray;
-        }
-        else if (countdownText != "")
-        {
-            buttonText = "停用定時\n" + countdownText;
-            textColor = Red;
-            bgColor = Pink;
-        }
-        else
-        {
-            buttonText = "停用定時";
-            textColor = Red;
-            bgColor = Pink;
-        }
-    }
-    
-    if(ObjectFind(TIMER_BUTTON_NAME) < 0)
-    {
-        // 初次創建定時控制按鈕
-        ObjectCreate(TIMER_BUTTON_NAME, OBJ_BUTTON, 0, 0, 0);
-        ObjectSet(TIMER_BUTTON_NAME, OBJPROP_CORNER, 1);        // 右上角位置
-        ObjectSet(TIMER_BUTTON_NAME, OBJPROP_XDISTANCE, 290);   // X距離（在暫停按鈕左側）
-        ObjectSet(TIMER_BUTTON_NAME, OBJPROP_YDISTANCE, 30);    // Y距離
-        ObjectSet(TIMER_BUTTON_NAME, OBJPROP_XSIZE, 120);       // 按鈕寬度
-        ObjectSet(TIMER_BUTTON_NAME, OBJPROP_YSIZE, 35);        // 按鈕高度
-        ObjectSet(TIMER_BUTTON_NAME, OBJPROP_STATE, false);     // 按鈕初始狀態
-    }
-    
-    // 更新按鈕外觀：文字和背景顏色
-    ObjectSet(TIMER_BUTTON_NAME, OBJPROP_COLOR, textColor);     // 文字顏色
-    ObjectSet(TIMER_BUTTON_NAME, OBJPROP_BGCOLOR, bgColor);     // 背景顏色
-    ObjectSetText(TIMER_BUTTON_NAME, buttonText, StopButtonFontSize, "Times New Roman");
-    
-    // 刷新圖表顯示
-    WindowRedraw();
-}
-
-// 獲取下一個事件的倒計時文字
-string GetNextEventCountdown()
-{
-    if (!isAutoTimerActive || timerCycleCompleted)
-    {
-        return("");  // 定時功能未激活或已完成周期，不顯示倒計時
-    }
-    
-    // 獲取北京時間
-    int currentHour, currentMinute;
-    GetBeijingHourMinute(currentHour, currentMinute);
-    
-    // 獲取當前日期
-    datetime beijingTime = GetBeijingTime();
-    int todayDay = TimeDay(beijingTime);
-    
-    // 計算當前時間的總秒數（從今天零點開始）
-    int currentTotalSeconds = currentHour * 3600 + currentMinute * 60;
-    
-    // 計算啟動和停止時間的總秒數
-    int startTotalSeconds = StartHour * 3600 + StartMinute * 60;
-    int stopTotalSeconds = StopHour * 3600 + StopMinute * 60;
-    
-    int targetTotalSeconds = -1;
-    string eventType = "";
-    string statusInfo = "";
-    
-    // 判斷下一個事件是啟動還是停止
-    if (currentTotalSeconds < startTotalSeconds)
-    {
-        // 情況A：當前時間在今天的啟動時間之前
-        if (!startTriggeredToday)
-        {
-            targetTotalSeconds = startTotalSeconds;
-            eventType = "啟動";
-            statusInfo = "今天";
-        }
-        else
-        {
-            // 今天已經啟動過，下一個事件是停止或明天啟動
-            if (currentTotalSeconds < stopTotalSeconds && !stopTriggeredToday)
-            {
-                targetTotalSeconds = stopTotalSeconds;
-                eventType = "停止";
-                statusInfo = "今天";
-            }
-            else
-            {
-                // 完成了一個完整周期
-                return("周期完成");
-            }
-        }
-    }
-    else if (currentTotalSeconds >= startTotalSeconds && currentTotalSeconds < stopTotalSeconds)
-    {
-        // 情況B：當前時間在啟動和停止之間
-        if (!stopTriggeredToday)
-        {
-            targetTotalSeconds = stopTotalSeconds;
-            eventType = "停止";
-            statusInfo = "今天";
-        }
-        else
-        {
-            // 今天已經停止過，周期完成
-            return("周期完成");
-        }
-    }
-    else
-    {
-        // 情況C：當前時間在停止時間之後
-        if (!stopTriggeredToday && startTriggeredToday)
-        {
-            // 今天已啟動但未停止，等待明天的停止時間已過
-            return("周期完成");
-        }
-        else if (!startTriggeredToday)
-        {
-            // 今天還沒啟動，下一個事件是明天的啟動
-            targetTotalSeconds = startTotalSeconds + 24 * 3600;  // 明天的啟動時間
-            eventType = "啟動";
-            statusInfo = "明天";
-        }
-        else
-        {
-            // 今天已經完成了啟動和停止，周期完成
-            return("周期完成");
-        }
-    }
-    
-    // 計算剩餘秒數
-    int remainingSeconds = targetTotalSeconds - currentTotalSeconds;
-    
-    // 如果剩餘時間小於0或大於48小時，返回空字串
-    if (remainingSeconds <= 0 || remainingSeconds > 48 * 3600)
-    {
-        return("");
-    }
-    
-    // 轉換為小時和分鐘
-    int remainingHours = remainingSeconds / 3600;
-    int remainingMins = (remainingSeconds % 3600) / 60;
-    
-    // 格式化倒計時文字
-    string countdownText = "";
-    
-    // 小時部分
-    if (remainingHours < 10)
-    {
-        countdownText = "0" + IntegerToString(remainingHours);
-    }
-    else
-    {
-        countdownText = IntegerToString(remainingHours);
-    }
-    countdownText += ":";
-    
-    // 分鐘部分
-    if (remainingMins < 10)
-    {
-        countdownText += "0" + IntegerToString(remainingMins);
-    }
-    else
-    {
-        countdownText += IntegerToString(remainingMins);
-    }
-    
-    // 添加事件類型和日期標記
-    countdownText += " " + eventType;
-    if (statusInfo != "")
-    {
-        countdownText += "(" + statusInfo + ")";
-    }
-    
-    return(countdownText);
-}
-
-// 檢查定時控制按鈕點擊
-void CheckTimerButtonClick()
-{
-    // 檢測按鈕是否被點擊（狀態變為 true）
-    if(ObjectGet(TIMER_BUTTON_NAME, OBJPROP_STATE) == true)
-    {
-        if (!isAutoTimerActive)
-        {
-            // 啟用定時控制機制
-            isAutoTimerActive = true;
-            // waitingForNoOrders = false;  // 已移除：無需等待狀態
-            // nextCheckTime = 0;           // 已移除：無需延遲檢測
-            lastStartTrigger = 0;
-            lastStopTrigger = 0;
-            
-            // 重置一次性使用狀態
-            timerCycleCompleted = false;
-            startTriggeredToday = false;
-            stopTriggeredToday = false;
-            
-            // 記錄當前日期
-            datetime tempBeijingTime = GetBeijingTime();
-            currentDay = TimeDay(tempBeijingTime);
-            
-            Print("定時控制機制已啟用 - 將在北京時間 ", StartHour, ":", StartMinute, " 自動啟動，", StopHour, ":", StopMinute, " 自動停止");
-            Print("時間獲取方式：", (UseLocalTime ? "本地時間" : "服務器時間+偏移"), " - 當前: ", GetBeijingTimeString());
-            Print("注意：本次啟用為一次性使用權限，完成一個完整周期後將自動停用");
-        }
-        else if (timerCycleCompleted)
-        {
-            // 如果已經完成周期，重新啟用新的一次性權限
-            timerCycleCompleted = false;
-            startTriggeredToday = false;
-            stopTriggeredToday = false;
-            // waitingForNoOrders = false;  // 已移除：無需等待狀態
-            // nextCheckTime = 0;           // 已移除：無需延遲檢測
-            lastStartTrigger = 0;
-            lastStopTrigger = 0;
-            
-            // 更新當前日期
-            datetime tempBeijingTime2 = GetBeijingTime();
-            currentDay = TimeDay(tempBeijingTime2);
-            
-            Print("重新啟用定時控制機制 - 新的一次性使用權限");
-        }
-        else
-        {
-            // 停用定時控制機制
-            isAutoTimerActive = false;
-            // waitingForNoOrders = false;  // 已移除：無需等待狀態
-            // nextCheckTime = 0;           // 已移除：無需延遲檢測
-            timerCycleCompleted = false;
-            startTriggeredToday = false;
-            stopTriggeredToday = false;
-            
-            Print("定時控制機制已停用");
-        }
-        
-        // 更新按鈕外觀：反映新狀態
-        CreateTimerButton();
-        
-        // 重置按鈕狀態（避免重複觸發）
-        ObjectSet(TIMER_BUTTON_NAME, OBJPROP_STATE, false);
-        
-        // 刷新圖表顯示
-        WindowRedraw();
-    }
-}
-
-// 檢查是否有交易單子存在
-bool HasActiveOrders()
-{
-    for (int i = 0; i < OrdersTotal(); i++)
-    {
-        if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
-        {
-            // 檢查是否是本EA的單子
-            if (OrderSymbol() == Symbol() && OrderMagicNumber() == magicnumber)
-            {
-                return(true);  // 找到有效單子
-            }
-        }
-    }
-    return(false);  // 沒有找到任何單子
-}
-
-// 定時控制主處理函數
-void ProcessAutoTimer()
-{
-    if (!isAutoTimerActive || timerCycleCompleted)
-    {
-        return;  // 定時功能未激活或已完成周期，不處理
-    }
-    
-    // 獲取北京時間
-    int currentHour, currentMinute;
-    GetBeijingHourMinute(currentHour, currentMinute);
-    
-    datetime currentTime = TimeCurrent();  // 用於防重複觸發的時間標記
-    datetime tempBeijingTime3 = GetBeijingTime();
-    int todayDay = TimeDay(tempBeijingTime3);
-    
-    // 檢查日期是否變化（重置每日觸發狀態）
-    if (currentDay != 0 && todayDay != currentDay)
-    {
-        // 日期變化，重置每日狀態
-        startTriggeredToday = false;
-        stopTriggeredToday = false;
-        currentDay = todayDay;
-        
-        Print("定時控制 - 日期變化，重置每日觸發狀態");
-    }
-    
-    // 檢查是否達到啟動時間（北京時間）
-    if (currentHour == StartHour && currentMinute == StartMinute && !startTriggeredToday)
-    {
-        // 避免在同一分鐘內重複觸發（只在每分鐘的第一次tick時觸發）
-        if (currentTime - lastStartTrigger > 60)  // 距離上次觸發超過60秒
-        {
-            lastStartTrigger = currentTime;
-            startTriggeredToday = true;  // 標記今天已觸發啟動
-            
-            Print("定時控制 - 北京時間 ", currentHour, ":", currentMinute, 
-                  " (", GetBeijingTimeString(), ") - 觸發啟動檢查");
-            
-            // 如果是暫停狀態或者熔斷狀態，就變成運行狀態
-            if (isEAStopped || isCircuitBreakerActive)
-            {
-                // 清除熔斷狀態
-                isCircuitBreakerActive = false;
-                pauseEndTime = 0;
-                
-                // 啟動EA
-                isEAStopped = false;
-                
-                // 同步持久化狀態
-                SyncPersistentState();
-                
-                Print("定時控制 - 北京時間 ", currentHour, ":", currentMinute, 
-                      " 自動啟動EA，從暫停/熔斷狀態轉為運行狀態");
-                
-                // 立即更新按鈕顯示狀態
-                CreateStopButton();
-            }
-            else
-            {
-                Print("定時控制 - 北京時間 ", currentHour, ":", currentMinute, 
-                      " EA已為運行狀態，無需操作");
-            }
-        }
-    }
-    
-    // 檢查是否達到停止時間（北京時間）
-    if (currentHour == StopHour && currentMinute == StopMinute && !stopTriggeredToday)
-    {
-        // 避免在同一分鐘內重複觸發
-        if (currentTime - lastStopTrigger > 60)  // 距離上次觸發超過60秒
-        {
-            lastStopTrigger = currentTime;
-            stopTriggeredToday = true;  // 標記今天已觸發停止
-            
-            Print("定時控制 - 北京時間 ", currentHour, ":", currentMinute, 
-                  " (", GetBeijingTimeString(), ") - 觸發停止檢查");
-            
-            // 直接暫停 EA，不再檢查單子狀態（因為熔斷機制已經處理這個情況）
-            if (!isEAStopped)
-            {
-                isEAStopped = true;
-                SyncPersistentState();
-                
-                Print("定時控制 - 北京時間 ", currentHour, ":", currentMinute, 
-                      " 自動暫停 EA（一次性開啟權限）");
-                
-                // 立即更新按鈕顯示狀態
-                CreateStopButton();
-            }
-            
-            // 完成周期
-            CompleteTimerCycle();
-        }
-    }
-}
-
-// 完成定時周期（一次性使用權限結束）
-void CompleteTimerCycle()
-{
-    timerCycleCompleted = true;
-    
-    Print("定時控制周期完成 - 一次性使用權限結束");
-    Print("如需再次使用，請點擊\'完成周期\'按鈕重新啟用");
-    
-    // 更新按鈕顯示
-    CreateTimerButton();
-}
-// +++++++++++++++ 定時控制功能結束 +++++++++++++++
-
-// +++++++++++++++ 北京時間獲取功能：支持本地和服務器時間 +++++++++++++++
-
-// 獲取北京時間（主函數）
-datetime GetBeijingTime()
-{
-    if (UseLocalTime)
-    {
-        // 使用本地時間獲取北京時間
-        return(GetLocalBeijingTime());
-    }
-    else
-    {
-        // 從服務器獲取北京時間（將MT4服務器時間轉換為北京時間）
-        return(GetServerBeijingTime());
-    }
-}
-
-// 方法1：從本地系統獲取北京時間
-datetime GetLocalBeijingTime()
-{
-    // 注意：這個方法依賴於本地電腦已經設置為北京時區或用戶手動校時
-    // 如果系統時間不正確，建議使用 UseLocalTime = false
-    
-    // MQL4中的TimeLocal()返回本地時間
-    return(TimeLocal());
-}
-
-// 方法2：從MT4服務器時間轉換為北京時間
-datetime GetServerBeijingTime()
-{
-    // 獲取MT4服務器時間
-    datetime serverTime = TimeCurrent();
-    
-    // 計算北京時間（GMT+8）
-    // 這裡需要知道MT4服務器的時區偏移
-    // 一般情況下：
-    // - 如果是歐洲服務器（GMT+2/+3），需要 +5 或 +6 小時
-    // - 如果是美國服務器（GMT-5/-4），需要 +12 或 +13 小時
-    
-    // 這裡使用一個簡化的轉換方法：
-    // 假設服務器時間是GMT，直接加上8小時
-    datetime beijingTime = serverTime + BeijingTimeOffset * 3600;
-    
-    return(beijingTime);
-}
-
-// 獲取北京時間的小時和分鐘
-void GetBeijingHourMinute(int &hour, int &minute)
-{
-    datetime beijingTime = GetBeijingTime();
-    hour = TimeHour(beijingTime);
-    minute = TimeMinute(beijingTime);
-}
-
-// 顯示北京時間訊息（用於調試）
-string GetBeijingTimeString()
-{
-    datetime beijingTime = GetBeijingTime();
-    return("BJ: " + TimeToStr(beijingTime, TIME_MINUTES) + 
-           " (" + (UseLocalTime ? "本地" : "服務器") + ")");
-}
-// +++++++++++++++ 北京時間獲取功能結束 +++++++++++++++
